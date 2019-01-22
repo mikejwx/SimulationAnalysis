@@ -10,6 +10,7 @@ different heights.
 import numpy as np
 from netCDF4 import Dataset
 import matplotlib.pyplot as plt
+from analysis_tools import get_CTZ
 
 hours = ["{0:02d}".format(h) for h in xrange(0, 24, 3)]
 # Open the netCDF for lwp (only one for the simulation)

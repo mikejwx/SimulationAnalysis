@@ -190,6 +190,39 @@ def get_CC(m_cl, start = 0, end = None, threshold = 0.):
     
     return cc_profile
 
+def get_CTZ(mc, z, threshold = 1e-08):
+    """
+    takes a 3- or 4-dimensional array of total cloud water mixing ratio (i.e. mcl
+    + mcf) and a 1-dimensional array of heights.
+    Then finds the highest level at which the total cloud water mixing ratio is
+    non-zero. Options exist to interpolate to this level using scipy functions, 
+    which might be useful for deep convection, but is more expensive.
+    ----------------------------------------------------------------------------
+    Input:
+    mc = a 3- or 4-dimensional array of total cloud water mixing ratio 
+    mc = mcl + mcf = f([t],z,y,x)
+    z = heights corresponding to the z coordinate of mc
+    z = f(z)
+    threshold = some value below which total water mixing ratio is not considered
+        to be cloud
+    
+    Output:
+    Z_top = 2- or 3-dimensional array of cloud top heights, if there is no cloud
+    in the column, a np.nan should fill in.
+    Z_top = f([t],y,x)
+    ----------------------------------------------------------------------------
+    """
+    if len(mc.shape) == 3:
+        Z = np.repeat(z, mc.shape[1]*mc.shape[2], axis = 0).reshape(mc.shape)
+        Z_top = np.nanmax(np.where((mc >= threshold), Z, 0), axis = 0)
+    else:
+        Z = np.repeat(z, mc.shape[2]*mc.shape[3], axis = 0).reshape(mc.shape[1:])
+        Z_top = np.zeros((mc.shape[0], mc.shape[2], mc.shape[3])
+        for it in xrange(mc.shape[0]):
+            Z_top[it,:,:] = np.nanmax(np.where((mv >= threshold), z, 0), axis = 1)
+    
+    return Z_top
+
 ################################################################################
 #                                                                              #
 # Regridding, interpolation and spatial smoothing routines                     #
