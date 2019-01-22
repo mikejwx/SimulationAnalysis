@@ -47,21 +47,23 @@ u_nc.close()
 v_nc.close()
 w_nc.close()
 
-w_vmin = 6*np.std(w)
+w_vmin = -2*np.std(w)
 w_vmax = -w_vmin
+smooth_radius = 1500.
+my_scale = 1
 from datetime import datetime as dt
 print '[' + dt.now().strftime("%H:%M:%S") + ']'
 start = dt.now()
-w_smoothed = circular_smoothing(X, Y, data = w, r = 1000.)
-DIV_smoothed = circular_smoothing(X, Y, data = DIV, r = 1000.)
+w_smoothed = circular_smoothing(X, Y, data = w, r = smooth_radius, scale = my_scale)
+DIV_smoothed = circular_smoothing(X, Y, data = DIV, r = smooth_radius, scale = my_scale)
 end = dt.now()
 print '[' +  dt.now().strftime("%H:%M:%S") + '] Smoothing took ' + str(end - start)
 
 fig = plt.figure()
-ax = fig.add_subplot(1, 1, 1)
-W = ax.contourf(X, Y, w_smoothed, cmap = 'bwr', vmin = w_vmin, vmax = w_vmax, extend = 'both', levels = np.linspace(-2., 2., 21))
-ax.contour(X, Y, DIV, colors = ['k'], levels = np.linspace(-0.008, 0.008, 11))
-ax.contour(X, Y, DIV, colors = ['k'], levels = [0], linewidths = [3])
+ax = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
+W = ax.contourf(X[::my_scale,::my_scale], Y[::my_scale,::my_scale], w_smoothed, cmap = 'bwr', vmin = w_vmin, vmax = w_vmax, extend = 'both', levels = np.linspace(-1., 1., 21))
+ax.contour(X[::my_scale,::my_scale], Y[::my_scale,::my_scale], DIV_smoothed, colors = ['k'], levels = np.linspace(-0.001, 0.001, 11))
+ax.contour(X[::my_scale,::my_scale], Y[::my_scale,::my_scale], DIV_smoothed, colors = ['k'], levels = [0], linewidths = [3])
 fig.colorbar(W, ax = ax)
 plt.show()
 

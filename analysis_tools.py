@@ -527,7 +527,7 @@ def ddy(data, Y, periodic = True):
     
     return d_dy
 
-def circular_smoothing(X, Y, data, r):
+def circular_smoothing(X, Y, data, r, scale = 1):
     """
     Smooth the data by taking the mean of all points within radius r.
     Requires the following input:
@@ -536,6 +536,8 @@ def circular_smoothing(X, Y, data, r):
     data a 2, 3, or 4D array f([t],[z],y,x) of data to be smoothed
     r, a single float in the same units as the X and Y coordinates to define a 
     radius with which to smooth the data.
+    scale = a parameter to reduce the size of the arrays to process quicker,
+        must be an integer greater than or equal to 1.
     
     N.B. a future version of this function may attempt to do some form of
     weighting to make the points closest to the actual point weigh more than
@@ -547,26 +549,26 @@ def circular_smoothing(X, Y, data, r):
     y_periodic = np.concatenate((y_periodic, y_periodic, y_periodic), axis = 1)
     smoothed_data = np.zeros_like(data)
     if len(data.shape) == 2:
-        for i in xrange(data.shape[0]):
-            for j in xrange(data.shape[1]):
+        for i in xrange(0, data.shape[0], scale):
+            for j in xrange(0, data.shape[1], scale):
                 iy, ix = np.where(np.sqrt((X[i,j] - x_periodic)**2 + (Y[i,j] - y_periodic)**2) <= r)
                 smoothed_data[i,j] = np.nanmean(data[iy%X.shape[0],ix%X.shape[1]])
-            plt.plot(X[i,:], data[i,:])
-            plt.plot(X[i,:], smoothed_data[i,:])
-            plt.show()
+        smoothed_data = smoothed_data[::scale,::scale]
     elif len(data.shape) == 3:
         for tz0 in xrange(data.shape[0]):
-            for i in xrange(data.shape[1]):
-                for j in xrange(data.shape[2]):
+            for i in xrange(0, data.shape[1], scale):
+                for j in xrange(0, data.shape[2], scale):
                     iy, ix = np.where(np.sqrt((X[i,j] - x_periodic)**2 + (Y[i,j] - y_periodic)**2) <= r)
                     smoothed_data[tz0,i,j] = np.nanmean(data[tz0,iy%X.shape[0],ix%X.shape[1]])
+        smoothed_data = smoothed_data[:,::scale,::scale]
     elif len(data.shape) == 4:
         for tz0 in xrange(data.shape[0]):
             for tz1 in xrange(data.shape[1]):
-                for i in xrange(data.shape[2]):
-                    for j in xrange(data.shape[3]):
+                for i in xrange(0, data.shape[2], scale):
+                    for j in xrange(0, data.shape[3], scale):
                         iy, ix = np.where(np.sqrt((X[i,j] - x_periodic)**2 + (Y[i,j] - y_periodic)**2) <= r)
                         smoothed_data[tz0,tz1,i,j] = np.nanmean(data[tz0,tz1,iy%X.shape[0],ix%X.shape[1]])
+        smoothed_data = smoothed_data[:,:,::scale,::scale]
     
     return smoothed_data
 
