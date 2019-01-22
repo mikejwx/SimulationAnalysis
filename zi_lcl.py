@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 from scipy import interpolate
 from datetime import datetime as dt
+from analysis_tools import zi, lcl
 
 """
 Code to calculate the mixed layer depth from a simple level of neutral buoyancy
@@ -10,124 +11,6 @@ method, and calculate the surface based lifting condensation level.
 
 Then compute the domain mean of these quantities and plot their time series.
 """
-
-def horizontalMean(data, height = True):
-    """
-    Function to compute and return the horizontal mean of a given array.
-    Will check if the array is 3- or 4- dimensional. If 3D, then assume that 
-    array = f(z, y, x), and if 4D, assume array = f(t, z, y, x).
-    """
-    
-    if (len(data.shape) == 3) and height:
-        h_mean = np.zeros(data.shape[0])
-        for k in xrange(data.shape[0]):
-            h_mean[k] = np.mean(data[k,:,:])
-    elif (len(data.shape) == 4) and height:
-        h_mean = np.zeros((data.shape[0], data.shape[1]))
-        for t in xrange(data.shape[0]):
-            for k in xrange(data.shape[1]):
-                h_mean[t, k] = np.mean(data[t, k, :, :])
-    elif (len(data.shape) == 3) and not height:
-        h_mean = np.zeros(data.shape[0])
-        for t in xrange(data.shape[0]):
-            h_mean[t] = np.mean(data[t,:,:])
-    else:
-        raise Exception("Unrecognised array shape in horizontalMean")
-    
-    return h_mean
-
-def zi(theta_v, z):
-    """
-    Function to calculate the mixed layer depth as a function of the virtual
-    potential temeprature.
-    
-    Input:
-    theta_v = virtual potential temperature (K), theta_v = theta_v(z, y, x)
-    z       = the heights (m) at which theta_v are computed
-    
-    Output:
-    zi      = the mixed layer depth
-    
-    Assumes that the mixed layer depth is defined as the level to which a
-    surface based parcel of air (i.e. theta_v_parcel = theta_v(z = 0)) must be 
-    lifted in order for the parcel to become neutrally buoyant (i.e. 
-    theta_v_parcel = theta_v_env(z = zi).
-    """
-    
-    # Use a surface based parcel
-    theta_v_parcel = theta_v[0,:,:]
-    # Find the height of the level of neutral buoyancy
-    z_i = np.zeros_like(theta_v_parcel)
-    for j in xrange(theta_v.shape[1]):
-        for i in xrange(theta_v.shape[2]):
-            ik = np.max(np.where(np.abs(theta_v_parcel[j,i] - theta_v[2:,j,i]) == np.min(np.abs(theta_v_parcel[j,i] - theta_v[2:,j,i])))[0])
-            if theta_v[ik,j,i] > theta_v_parcel[j,i]:
-                # Means the nearest point is higher height than the boundary layer depth
-                # Linearly interpolate to get z_i
-                m = 1
-                while theta_v[ik-m,j,i] == theta_v[ik,j,i]:
-                    m += 1
-                n = m - 1
-                z_i[j,i] = (z[ik-n] - z[ik-m])*(theta_v_parcel[j,i] - theta_v[ik-m,j,i])/(theta_v[ik-n,j,i] - theta_v[ik-m,j,i]) + z[ik-m]
-            elif theta_v[ik,j,i] < theta_v_parcel[j,i]:
-                # Means the nearest point is at a lower height than the boundary layer depth
-                m = 1
-                while theta_v[ik+m,j,i] == theta_v[ik,j,i]:
-                    m += 1
-                n = m - 1
-                z_i[j,i] = (z[ik+m] - z[ik+n])*(theta_v_parcel[j,i] - theta_v[ik+n,j,i])/(theta_v[ik+m,j,i] - theta_v[ik+n,j,i]) + z[ik+n]
-            else:
-                z_i[j,i] = z[ik]
-            #z_i[j, i] = interpolate.interp1d(theta_v[t2:, j, i], z[2:], fill_value = "extrapolate")(theta_v_parcel[j,i])
-            #if z_i[j, i] < 0.:
-            #    z_i[j, i] = 0.
-            
-            #k = 2
-            #while theta_v_parcel[j,i] > theta_v[k,j,i]:
-            #    k += 1
-            #z_i[j,i] = z[k]
-    return z_i
-
-def lcl(temp, q, pres, z):
-    """
-    lcl calculates the surface-based lifting condensation level as a function of
-    the temperature (temp), specific humidity (q), and pressure (pres).
-    These input are used to find the temperature and dew point which are used in
-    Bolton (1980)'s equation for the LCL.
-    
-    Input:
-    temp = air temperature (K), temp = temp[z=0, y, x]
-    q    = specific humidity (kg/kg), q = q[z=0, y, x]
-    pres = pressure (Pa), pres = pres[z, y, x]
-    z    = heights (m)
-    
-    Output:
-    lcl  = the lifting condensation level (m)
-    """
-    # Define some constants
-    T0 = 273.15 # freezing point of water
-    Lv = 2.501e6 # Latent heat of vapourisation
-    Rv = 461. # Gas constant for water vapour
-    e0 = 611.2 # vapour pressure of water vapour at T0
-    Rd = 287.05
-    E = Rd/Rv
-    cp = 1005.
-    
-    # calculate the dew point temperature
-    e = q*pres[0,:,:]/(E - q*E + q)
-    dewpoint = (1./T0 - (Rv/Lv)*np.log(e/e0))**(-1.)
-    
-    term_A = 1./(dewpoint - 56)
-    term_B = np.log(temp/dewpoint)/800.
-    T_LCL = 1/(term_A + term_B) + 56
-    
-    p_LCL = pres[0,:,:]*(T_LCL/temp)**(cp/Rd)
-    z_LCL = np.zeros_like(p_LCL)
-    for j in xrange(pres.shape[1]):
-        for i in xrange(pres.shape[2]):
-            z_LCL[j,i] = interpolate.interp1d(pres[:,j,i], z)(p_LCL[j,i])
-    
-    return z_LCL
 
 # Read in the data
 hours = ["{0:02d}".format(hour) for hour in xrange(0,24,3)]

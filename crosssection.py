@@ -6,14 +6,14 @@
 4. Plot the anomalies with respect to the horizontal mean of quantities of 
    interest along our cross section.
 """
-from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 from netCDF4 import Dataset
 from datetime import datetime as dt
 from scipy import interpolate, integrate
-execfile('../SkewT_archer.py')
+from SkewT_archer import *
+from analysis_tools import bilinear_interpolation, zi, find_h
 
 def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, length = 80, fill = '='):
     """
@@ -27,6 +27,7 @@ def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, l
       length    - Optional : character length of bar (Int)
       fill      - Optional : bar fill character (Str)
     """
+    from __future__ import print_function
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
     bar = fill * filledLength + '-' * (length - filledLength)
@@ -34,157 +35,6 @@ def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, l
     # Print New Line on Complete
     if iteration == total: 
         print()
-
-def zi(theta_v, z):
-    """
-    Function to calculate the mixed layer depth as a function of the virtual
-    potential temeprature.
-    
-    Input:
-    theta_v = virtual potential temperature (K), theta_v = theta_v(z, s)
-    z       = the heights (m) at which theta_v are computed
-    
-    Output:
-    zi      = the mixed layer depth, zi = zi(s)
-    
-    Assumes that the mixed layer depth is defined as the level to which a
-    surface based parcel of air (i.e. theta_v_parcel = theta_v(z = 0)) must be 
-    lifted in order for the parcel to become neutrally buoyant (i.e. 
-    theta_v_parcel = theta_v_env(z = zi).
-    """
-    
-    # Use a surface based parcel
-    theta_v_parcel = theta_v[0,:]
-    # Find the height of the level of neutral buoyancy
-    z_i = np.zeros_like(theta_v_parcel)
-    for i in xrange(theta_v.shape[1]):
-        z_i[i] = interpolate.interp1d(theta_v[2:, i], z[2:], fill_value = "extrapolate")(theta_v_parcel[i])
-        if z_i[i] < 0.:
-            z_i[i] = 0.
-    
-    return z_i
-
-def find_h(theta_v, u, v, z):
-    """
-    Iteratively solves equation 2 from Vogelezang and Holtslag (1996) to
-    estimate the boundary layer depth.
-    
-    This method uses a modified Richardson number approach and vertical profiles
-    of virtual potential temperature (theta_v), u- and v- wind components to
-    estimate the boundary layer height.
-    
-    theta_v = f(z)
-    u       = f(z)
-    v       = f(z)
-    """
-    # Requires numpy arrays
-    import numpy as np
-    # Requires interpolation routines from scipy
-    from scipy import interpolate
-    
-    # Constants
-    g = 9.81
-    
-    # Need a first guess for the height of the boundary layer.
-    h   = np.arange(1.0, 6000.1, 1.0) # m
-    z_s = 0.1*h
-    
-    theta_v = interpolate.interp1d(x = z, y = theta_v, fill_value = 'extrapolate')
-    u       = interpolate.interp1d(x = z, y = u, fill_value = 'extrapolate')
-    v       = interpolate.interp1d(x = z, y = v, fill_value = 'extrapolate')
-    
-    Ri_g = (g/theta_v(z_s))*(theta_v(h) - theta_v(z_s))*(h - z_s)/((u(h) - u(z_s))**2. + (v(h) - v(z_s))**2.)
-    
-    z_i = h[np.where(np.min(np.abs(Ri_g - 0.30)) == np.abs(Ri_g - 0.30))[0][0]]
-    
-    return z_i
-
-def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0, p = 0.5, fv = np.nan):
-    """
-    Performs bilinear interpolation on a given 2D array, z_in.
-    x_in = 2D array of x-coordinates, input
-    y_in = 2D array of y-coordinates, input
-    z_in = 3D array of data points, input z_in[nz, ny, nx]
-
-    x_out = 1D array of x-coordinates to be interpolated onto
-    y_out = 1D array of y-coordinates to be interpolated onto
-
-    interpolation scheme finds the nearest points and uses scipy's bisplrep to 
-    do the interpolation.
-    """
-    # Initialise our output array
-    z_out = np.zeros((z_in.shape[0], len(x_out)))
-    
-    # For each point to be interpolated onto
-    for i in xrange(len(x_out)):
-        # Find the distance to the input data coordinates
-        r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
-        
-        if kind == 0:
-            # Nearest neighbor approach
-            iy, ix = np.where(r == np.min(r))
-            z_out[:,i] = z_in[:,iy[0],ix[0]]
-        elif kind == 1:
-            # idw approach
-            # Use all points within 'd' m of x_out, y_out for weighted mean
-            iy, ix = np.where(r < d)
-            w = 0
-            
-            for j in xrange(len(iy)):
-                w += (1./r[iy[j], ix[j]]**p)
-                z_out[:,i] += (1./r[iy[j], ix[j]]**p)*z_in[:,iy[j], ix[j]]
-            
-            z_out[:,i] /= w
-        elif kind == 2:
-            # Find the nearest point
-            iy, ix = np.where(r == np.min(r))
-            iy = iy[0]
-            ix = ix[0]
-            # Determine which quadrant (i.e. up and left, up and right, down and
-            # right, or down and left) this point is with respect to the output 
-            # point
-            dx = x_in[iy, ix] - x_out[i] # if +ve, input point is to the right
-            dy = y_in[iy, ix] - y_out[i] # if +ve, input point is up
-            if np.min([j in xrange(z_in.shape[1]) for j in [iy-1, iy, iy+1]]) and np.min([j in xrange(z_in.shape[2]) for j in [ix-1, ix, ix+1]]):
-                if dx > 0:
-                    # nearest input point is to the right
-                    if dy > 0:
-                        # nearest input point is up
-                        z_out_up = (z_in[:,iy,ix] - z_in[:,iy,ix-1])*(x_out[i] - x_in[iy,ix-1])/(x_in[iy,ix] - x_in[iy,ix-1]) + z_in[:,iy,ix-1]
-                        z_out_down = (z_in[:,iy-1,ix] - z_in[:,iy-1,ix-1])*(x_out[i] - x_in[iy-1,ix-1])/(x_in[iy-1,ix] - x_in[iy-1,ix-1]) + z_in[:,iy-1,ix-1]
-                        y_in_up = (y_in[iy,ix] - y_in[iy,ix-1])*(x_out[i] - x_in[iy,ix-1])/(x_in[iy,ix] - x_in[iy,ix-1]) + y_in[iy,ix-1]
-                        y_in_down = (y_in[iy-1,ix] - y_in[iy-1,ix-1])*(x_out[i] - x_in[iy-1,ix-1])/(x_in[iy-1,ix] - x_in[iy-1,ix-1]) + y_in[iy-1,ix-1]
-                        z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
-                    elif dy <= 0:
-                        # nearest input point is down
-                        z_out_up = (z_in[:,iy+1,ix] - z_in[:,iy+1,ix-1])*(x_out[i] - x_in[iy+1,ix-1])/(x_in[iy+1,ix] - x_in[iy+1,ix-1]) + z_in[:,iy+1,ix-1]
-                        z_out_down = (z_in[:,iy,ix] - z_in[:,iy,ix-1])*(x_out[i] - x_in[iy,ix-1])/(x_in[iy,ix] - x_in[iy,ix-1]) + z_in[:,iy,ix-1]
-                        y_in_up = (y_in[iy+1,ix] - y_in[iy+1,ix-1])*(x_out[i] - x_in[iy+1,ix-1])/(x_in[iy+1,ix] - x_in[iy+1,ix-1]) + y_in[iy+1,ix-1]
-                        y_in_down = (y_in[iy,ix] - y_in[iy,ix-1])*(x_out[i] - x_in[iy,ix-1])/(x_in[iy,ix] - x_in[iy,ix-1]) + y_in[iy,ix-1]
-                        z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
-                elif dx <= 0:
-                    # nearest input point is to the left
-                    if dy > 0:
-                        # nearest input point is up
-                        z_out_up = (z_in[:,iy,ix+1] - z_in[:,iy,ix])*(x_out[i] - x_in[iy,ix])/(x_in[iy,ix+1] - x_in[iy,ix]) + z_in[:,iy,ix]
-                        z_out_down = (z_in[:,iy-1,ix+1] - z_in[:,iy-1,ix])*(x_out[i] - x_in[iy-1,ix])/(x_in[iy-1,ix+1] - x_in[iy-1,ix]) + z_in[:,iy-1,ix]
-                        y_in_up = (y_in[iy,ix+1] - y_in[iy,ix])*(x_out[i] - x_in[iy,ix])/(x_in[iy,ix+1] - x_in[iy,ix]) + y_in[iy,ix]
-                        y_in_down = (y_in[iy-1,ix+1] - y_in[iy-1,ix])*(x_out[i] - x_in[iy-1,ix])/(x_in[iy-1,ix+1] - x_in[iy-1,ix]) + y_in[iy-1,ix]
-                        z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
-                    elif dy <= 0:
-                        # nearest input point is down
-                        z_out_up = (z_in[:,iy+1,ix+1] - z_in[:,iy+1,ix])*(x_out[i] - x_in[iy+1,ix])/(x_in[iy+1,ix+1] - x_in[iy+1,ix]) + z_in[:,iy+1,ix]
-                        z_out_down = (z_in[:,iy,ix+1] - z_in[:,iy,ix])*(x_out[i] - x_in[iy,ix])/(x_in[iy,ix+1] - x_in[iy,ix]) + z_in[:,iy,ix]
-                        y_in_up = (y_in[iy+1,ix+1] - y_in[iy+1,ix])*(x_out[i] - x_in[iy+1,ix])/(x_in[iy+1,ix+1] - x_in[iy+1,ix]) + y_in[iy+1,ix]
-                        y_in_down = (y_in[iy,ix+1] - y_in[iy,ix])*(x_out[i] - x_in[iy,ix])/(x_in[iy,ix+1] - x_in[iy,ix]) + y_in[iy,ix]
-                        z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
-            else:
-                z_out[:,i] = fv
-        elif kind == 3:
-            iy, ix = np.where(r < d)
-            z_out[:,i] = np.nanmean(z_in[:,iy,ix], axis = 1)
-        
-    return z_out
 
 testing = True
 
@@ -273,41 +123,7 @@ y_c = 4*R_i
 
 # From this center point, draw line in either direction parallel to wind_dir_0
 # get the coordinates of this line at 100 m resolution.
-h  = 100.0
-dx = (h*np.sin(np.pi*wind_dir_0/180.0))
-dy = (h*np.cos(np.pi*wind_dir_0/180.0))
-
-# start lists of coordinates from the centre point of the island
-f = open("output.txt", "a")
-f.write('[' + dt.now().strftime("%H:%M:%S") + '] Calculating coordinates for the cross section...\n')
-f.close()
-x_cs = [x_c]
-y_cs = [y_c]
-
-# Populate my list of x and y coordinates along the cross section
-while (x_cs[-1] < np.max(x))*(y_cs[-1] < np.max(y)):
-    x_cs.append(x_cs[-1] + dx)
-    y_cs.append(y_cs[-1] + dy)
-
-x_cs = x_cs[::-1]
-y_cs = y_cs[::-1]
-
-while (x_cs[-1] > np.min(x))*(y_cs[-1] > np.min(y)):
-    x_cs.append(x_cs[-1] - dx)
-    y_cs.append(y_cs[-1] - dy)
-
-# check that all the coordinates along the cross section are within the domain
-i = 0
-while i < len(x_cs):
-    if (x_cs[i] > np.max(x)) or (x_cs[i] < np.min(x)) or (y_cs[i] > np.max(y)) or (y_cs[i] < np.min(y)):
-        del x_cs[i]
-        del y_cs[i]
-    else:
-        i += 1
-
-# store to arrays
-x_cs = np.array(x_cs)
-y_cs = np.array(y_cs)
+x_cs, y_cs = get_cs_coords(x_c, y_c, wind_dir_0, h = 100.0)
 
 ### Testing ###
 if testing:

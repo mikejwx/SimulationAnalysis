@@ -12,15 +12,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
-
-def hmean(aIN):
-    """
-    Takes in aIN as a 3D array (z, y, x) and computes the horizontal mean.
-    """
-    aOUT = np.zeros(aIN.shape[0])
-    for k in range(aIN.shape[0]):
-        aOUT[k] = np.mean(aIN[k,:,:])
-    return aOUT
+from analysis_tools import cartesian2polar, polar2cartesian, cross_section_x
 
 # Step 1
 x = np.arange(0, 116000, 100.)
@@ -48,45 +40,6 @@ wind_dir = np.arcsin(-(78726-x_isl)/wind_r)
 wind_dir = wind_dir*180./np.pi
 
 # Step 4
-def cartesian2polar(x, y, x_o = 0., y_o = 0.):
-    """
-    Convert from cartesian to polar coordinates
-    x, y = the cartesian coordinates
-    x_o, y_o = the coordinates of the origin
-    """
-    dx = x - x_o
-    dy = y - y_o
-    r = np.sqrt(dx**2 + dy**2)
-    
-    """
-    Four cases:
-    1. if dx and dy are positive
-    2. if dx is positive and dy is negative
-    3. if dx and dy are negative
-    4. if dx is negative and dy is positive
-    """
-    theta1 = np.arcsin(dx/r)
-    theta2 = np.arcsin(-dy/r) + np.pi/2.
-    theta3 = np.arcsin(-dx/r) + np.pi
-    theta4 = np.arcsin(dy/r)  + 3.*np.pi/2.
-    
-    theta1[dx < 0.] = 0.
-    theta1[dy < 0.] = 0.
-    
-    theta2[dx < 0.] = 0.
-    theta2[dy > 0.] = 0.
-
-    theta3[dx > 0.] = 0.
-    theta3[dy > 0.] = 0.
-    
-    theta4[dx > 0.] = 0.
-    theta4[dy < 0.] = 0.
-    
-    # Add together and convert from radians to degrees
-    theta = (theta1 + theta2 + theta3 + theta4)*180./np.pi
-    
-    return r, theta
-
 r, theta = cartesian2polar(x, y, x_isl, y_isl)
 
 # Step 5
@@ -116,48 +69,6 @@ theta_new = theta + heading_diff
 Convert back to (x,y) coordinates from the polar
 """
 
-def polar2cartesian(r, theta, x_o, y_o):
-    """
-    Converts from polar coordinates to cartesian coordinates
-    r = distance from the origin
-    theta = angle from x = 0 in degrees
-    x_o, y_o = the origin in cartesian space
-    """
-    # Convert from degrees to radians
-    theta = theta*np.pi/180.
-    x = r*np.sin(theta)
-    y = r*np.cos(theta)
-    
-    # return the origin to 0,0
-    x += x_o
-    y += y_o
-    
-    return x, y
-
-def cross_section_x(data, x_rot, x_pos, t_pos = -1):
-    """
-    data = data[time, z, y, x]
-    x_rot = rotated x-coordinate
-    x_pos = x_coordinate to do cross section at
-    """
-    data_xs = np.zeros_like(data[t_pos,:,:,x_pos/100])
-    x_target = x_rot - x_pos
-    
-    my_ixs = []
-    for iy in range(w.shape[2]):
-        ix = np.where(abs(x_target[iy,:]) == np.min(abs(x_target[iy,:])))[0][0]
-        my_ixs.append(ix)
-        if x_target[iy, ix] > 0.:
-            # interpolate ix and ix-1
-            data_xs[:,iy] = (data[t_pos,:,iy,ix] - data[t_pos,:,iy,ix-1])*(x_pos - x_rot[iy,ix-1])/(x_rot[iy,ix] - x_rot[iy,ix-1]) + data[t_pos,:,iy,ix-1]
-        elif x_target[iy, ix] > 0:
-            # interpolate ix+1 and ix
-            data_xs[:,iy] = (data[t_pos,:,iy,ix+1] - data[t_pos,:,iy,ix])*(x_pos - x_rot[iy,ix])/(x_rot[iy,ix+1] - x_rot[iy,ix]) + data[t_pos,:,iy,ix]
-        else:
-            # no need to interpolate as x_target == 0
-            data_xs[:,iy] = data[t_pos,:,iy,ix]
-    return data_xs, my_ixs
-
 x_rot, y_rot = polar2cartesian(r, theta_new, x_isl, y_isl)
 times = ["{0:02d}".format(t) for t in np.arange(0, 24, 3)]
 xspos = 86000
@@ -169,7 +80,7 @@ for time in times:
     lwp_data = Dataset('lwp_'+time+'.nc', 'r')
     lwp_key = [key for key in lwp_data.variables.keys() if 'STASH' in key][0]
     lwp = lwp_data.variables[lwp_key][:]
-    min1 = lwp_data.variables['min1'][:]
+    min5 = lwp_data.variables['min5_0'][:]
     lwp_data.close()
 
     # Grab a bit of vertical velocity data
@@ -182,13 +93,13 @@ for time in times:
 
     w = w_data.variables[w_key][:]
     z = w_data.variables[z_key][:]
-    min15 = w_data.variables['min15'][:]
+    min10 = w_data.variables['min10_0'][:]
     w_data.close()
     
-    for it in range(len(min15)):
+    for it in range(len(min10)):
         w_xs, my_ixs = cross_section_x(w, x_rot, xspos, it)
         
-        it1 = np.where(min1 == min15[it])[0][0]
+        it1 = np.where(min1 == min10[it])[0][0]
         
         print('Making plots for ' + str(min15[it]))
         
@@ -233,9 +144,9 @@ for time in times:
         plt.colorbar()
         plt.title('Vertical Velocity (m/s) Cross section', fontsize = 7)
         
-        plt.suptitle('T+' + "{0:04d}".format(int(min15[it])) + 'min', fontsize = 14)
+        plt.suptitle('T+' + "{0:04d}".format(int(min10[it])) + 'min', fontsize = 14)
         plt.tight_layout()
-        plt.savefig('./slice_plots/rotate_wrap_around_lwp_'+"{0:04d}".format(int(min15[it]))+'.png', dpi = 300, bbox_inches = 'tight')
+        plt.savefig('../slice_plots/rotate_wrap_around_lwp_'+"{0:04d}".format(int(min10[it]))+'.png', dpi = 300, bbox_inches = 'tight')
         if min15[it] == 1.:
             plt.show()
         plt.close('all')
@@ -247,7 +158,7 @@ w_tmxs /= count
 
 plt.contourf([y_rot[i,j]/1000. for i,j in enumerate(my_ixs)], z/1000., w_tmxs, cmap = 'bwr', vmin = -1, vmax = 1)
 plt.colorbar()
-plt.savefig('./slice_plots/w_time_mean_cross_section_through_cloud_trail.png', dpi = 100, bbox_inches = 'tight')
+plt.savefig('../slice_plots/w_time_mean_cross_section_through_cloud_trail.png', dpi = 100, bbox_inches = 'tight')
 
 
 
