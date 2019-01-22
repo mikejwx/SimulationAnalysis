@@ -355,20 +355,20 @@ def dry_adiabats():
     poisson equation for potential temperature
 	"""
     adiabats = np.zeros((len(adiabat_p), len(T0)))
-	for T in range(len(T0)):
-		adiabats[:,T] = (T0[T]+273.15)/(p0/adiabat_p)**(Rd/cpd) - 273.15
-			
-	return adiabats
+    for T in range(len(T0)):
+        adiabats[:,T] = (T0[T]+273.15)/(p0/adiabat_p)**(Rd/cpd) - 273.15
+    	
+    return adiabats
 
 def get_saturation_mixing_ratio(temp):
     """
 	Calculate the saturation mixing ratio for a given temperature (temp).
     temp: input temperature (deg C)
     """
-	es = 6.112*np.exp(17.67*temp/(temp+243.5))
-	ws = EPS*es/(adiabat_p - es)
-	
-	return ws
+    es = 6.112*np.exp(17.67*temp/(temp+243.5))
+    ws = EPS*es/(adiabat_p - es)
+
+    return ws
 
 def moist_adiabats():
     """
@@ -428,8 +428,8 @@ def paper():
     """
     Plots the paper used to plot skew T diagrams on without requiring input data.
     Additional plots of skewed temperatures can be overlaid.
-    It might be possible to include this is a subplot and wind barbs in a separate subplot
-    using windBarbs().
+    It might be possible to include this is a subplot and wind barbs in a 
+    separate subplot using windBarbs().
     """
     theta = dry_adiabats()
     thetae = moist_adiabats()
