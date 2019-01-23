@@ -208,7 +208,7 @@ def get_cs(it):
     #print('Starting section 4')
 
     # Translate the cross section coordinates into the distance downwind of the island
-    R = np.sign(x_c - x_cs)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)
+    R = - np.sign(x_c - x_cs)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)
 
     # Calculate the anomaly from the horizontal mean
     theta_cs_anom = np.zeros_like(theta_cs)
