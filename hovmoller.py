@@ -9,6 +9,7 @@ from netCDF4 import Dataset
 from datetime import datetime as dt
 from scipy import interpolate, integrate
 from analysis_tools import bilinear_interpolation, find_h, zi
+import os
 
 # Calculate the points along the cross section.
 # Assume that the appropriate representative wind direction is equal to the 
@@ -100,39 +101,71 @@ x_cs = np.array(x_cs)
 y_cs = np.array(y_cs)
 
 hours = ["{0:02d}".format(h) for h in xrange(0, 24, 3)]
-theta_key = u'STASH_m01s00i004'
-q_key = u'STASH_m01s00i010'
+# use dictionaries to hold the stash codes for the variables
+var_keys = {'theta' : u'STASH_m01s00i004',
+            'qv'    : u'STASH_m01s00i010',
+            'w'     : u'STASH_m01s00i150'}
+var_cmaps = {'theta' : 'hot',
+             'qv'    : 'BrBG',
+             'w'     : 'bwr'}
+var_factor = {'theta' : 1.,
+              'qv'    : 1000.,
+              'w'     : 1.}
+var_units = {'theta' : '(K)',
+             'qv'    : r'(g kg$^{-1}$)',
+             'w'     : r'(m s^{-1}$)'}
+# use dictionary to hold the hovmollers
+hovmollers = {}
+for key in var_keys.keys():
+    hovmollers[key] = np.zeros((18*len(hours), len(x_cs)))
 
+# convert island radius and along wind distance from m into km
 R_i /= 1000.
 R = -np.sign(x_cs - x_c)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)/1000.
+
+# create a times array in units of hours
 times = np.arange(10., 1440.1, 10.)/60.
-for iz in xrange(126):
+
+# get an array of the heights
+bouy_nc = Dataset('../bouy_00.nc', 'r')
+z = bouy_nc.variables['thlev_zsea_theta'][:]*1.
+bouy_nc.close()
+
+# get the indexes for target heights
+izs = [np.where(np.abs(z - i) == np.min(np.abs(z - i)))[0][0] for i in [90, 180, 360, 710]] # these heights are from Matthews et al (2007)
+
+for iz in izs:
+    print 'Working on height ' + str(int(z[iz])) + ' m'
     for hour in hours:
         # read in the data
+        print 'Reading hour ' + hour
         bouy_nc = Dataset('../bouy_'+hour+'.nc', 'r')
         if hour == '00':
             # skip the first time step to avoid issue with moisture resetting
             it_start = 1
-            hovmoller = np.zeros((18*len(hours), len(x_cs)))
-            z = bouy_nc.variables['thlev_zsea_theta'][:]*1.
         else:
             it_start = 0
-        hovmoller[18*hours.index(hour):(18*hours.index(hour) + 18),:] = bilinear_interpolation(X, Y, bouy_nc.variables[q_key][it_start:,iz,:,:], x_cs, y_cs, kind = 3)
+        for key in var_keys.keys():
+            hovmollers[key][18*hours.index(hour):(18*hours.index(hour) + 18),:] = bilinear_interpolation(X, Y, bouy_nc.variables[var_keys[key]][it_start:,iz,:,:], x_cs, y_cs, kind = 3)
         bouy_nc.close()
-    print 'Making plot for height ' + str(int(z[iz])) + ' m'
-    cbar_min = round(1000.*(np.nanmean(hovmoller) - 2*np.std(hovmoller)), 1)
-    cbar_max = round(1000.*(np.nanmean(hovmoller) + 2*np.std(hovmoller)), 1)
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    hov = ax.contourf(R, times, hovmoller*1000., cmap = 'BrBG', levels = np.linspace(cbar_min, cbar_max, 21), extend = 'both')
-    plt.colorbar(hov, ax = ax, label = r'$q_v$ (K)')
-    ax.plot([-R_i, -R_i], [0, 24], 'k--')
-    ax.plot([R_i,R_i], [0, 24], 'k--')
-    ax.set_yticks(np.arange(0., 24.1, 3.))
-    ax.set_ylabel('Time (hrs)')
-    ax.set_xlabel('Distance Downwind (km)')
-    ax.set_title(r'Hovmoller of $q_v$ at ' + "{0:04d}".format(int(z[iz])) + 'm')
-    plt.savefig('../Hovmoller_qv_'+"{0:04d}".format(int(z[iz]))+'m.png', dpi = 100)
-    plt.show()
+
+    for key in var_keys.keys():
+        print 'Making Hovmoller for ' + key + ' at height ' + str(int(z[iz])) + ' m'
+        cbar_min = round(var_factor[key]*(np.nanmean(hovmollers[key]) - np.max(2*np.std(hovmollers[key]), 0.5)), 1)
+        cbar_max = round(var_factor[key]*(np.nanmean(hovmollers[key]) + np.max(2*np.std(hovmollers[key]), 0.5)), 1)
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        hov = ax.contourf(R, times, hovmollers[key]*var_factor[key], cmap = var_cmaps[key], levels = np.linspace(cbar_min, cbar_max, 21), extend = 'both')
+        plt.colorbar(hov, ax = ax, label = key + ' ' + var_units[key])
+        ax.plot([-R_i, -R_i], [0, 24], 'k--')
+        ax.plot([R_i,R_i], [0, 24], 'k--')
+        ax.set_yticks(np.arange(0., 24.1, 3.))
+        ax.set_ylabel('Time (hrs)')
+        ax.set_xlabel('Distance Downwind (km)')
+        ax.set_title(r'Hovmoller of ' + key + ' at ' + "{0:04d}".format(int(z[iz])) + 'm')
+        if not os.path.isdir('../Hovmoller_' + key):
+            os.mkdir('../Hovmoller_' + key)
+        plt.savefig('../Hovmoller_' + key + '/Hovmoller_' + key + '_' + "{0:04d}".format(int(z[iz])) + 'm.png', dpi = 100)
+        plt.show()
 
 
