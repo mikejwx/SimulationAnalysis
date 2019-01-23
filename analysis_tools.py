@@ -214,12 +214,12 @@ def get_CTZ(mc, z, threshold = 1e-08):
     """
     if len(mc.shape) == 3:
         Z = np.repeat(z, mc.shape[1]*mc.shape[2], axis = 0).reshape(mc.shape)
-        Z_top = np.nanmax(np.where((mc >= threshold), Z, 0), axis = 0)
+        Z_top = np.nanmax(np.where((mc >= threshold), Z, np.nan), axis = 0)
     else:
         Z = np.repeat(z, mc.shape[2]*mc.shape[3], axis = 0).reshape(mc.shape[1:])
-        Z_top = np.zeros((mc.shape[0], mc.shape[2], mc.shape[3])
+        Z_top = np.zeros((mc.shape[0], mc.shape[2], mc.shape[3]))
         for it in xrange(mc.shape[0]):
-            Z_top[it,:,:] = np.nanmax(np.where((mv >= threshold), z, 0), axis = 1)
+            Z_top[it,:,:] = np.nanmax(np.where((mc[it,:,:,:] >= threshold), Z, np.nan), axis = 0)
     
     return Z_top
 
@@ -289,13 +289,20 @@ def polar2cartesian(r, theta, x_o, y_o):
 def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0, p = 0.5, fv = np.nan):
     """
     Performs bilinear interpolation on a given 2D array, z_in.
+    ----------------------------------------------------------------------------
+    INPUT:
     x_in = 2D array of x-coordinates, input
     y_in = 2D array of y-coordinates, input
     z_in = 3D array of data points, input z_in[nz, ny, nx]
 
     x_out = 1D array of x-coordinates to be interpolated onto
     y_out = 1D array of y-coordinates to be interpolated onto
-
+    
+    OUTPUT:
+    z_out = 2D array, output z_out[nz, nr] where nr is the length of x_out
+    e.g. nz could be the number of height levels, and nr could be the number of 
+    downwind points
+    
     interpolation scheme finds the nearest points and uses scipy's bisplrep to 
     do the interpolation.
     """
@@ -373,7 +380,7 @@ def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0,
         
     return z_out
 
-def get_cs_coords(x_c, y_c, direction, h = 100.):
+def get_cs_coords(x_c, y_c, direction, x, y, h = 100.):
     """
     Uses an input coordinate (x_c, y_c) and a wind direction (direction) to 
     calculate the coordinates of a line that goes through the input coordinate
@@ -383,6 +390,8 @@ def get_cs_coords(x_c, y_c, direction, h = 100.):
     x_c: the x-coordinate of the input point (e.g. island centre)
     y_c: the y-coordinate of the input point
     direction: the direction of the cross section
+    x: the 2D array of X coordinates
+    y: the 2D array of Y coordinates
     h: the resolution at which to take points along the cross section
     """
     
