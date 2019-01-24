@@ -10,6 +10,7 @@ different heights.
 import numpy as np
 from netCDF4 import Dataset
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 from analysis_tools import get_CTZ, bilinear_interpolation, get_cs_coords
 import os
 from scipy import interpolate, integrate
@@ -37,10 +38,10 @@ for hour in hours:
     if hour == '00':
         # Mask out the mcl_data
         mcl_mask = np.where((mcl_data >= 1e-08), 1., 0.)
-        CTZ      = get_CTZ(mcl_data, z) # returns CTZ = f(t,y,x)
+        CTZ      = get_CTZ(mcl_data, z, threshold = 1e-16) # returns CTZ = f(t,y,x)
         times    = mr_nc.variables[u'min10_0'][:]/60.
     else:
-        mcl_mask = np.concatenate((mcl_mask, np.where((mcl_data >= 1e-08), 1., 0.)), axis = 0)
+        mcl_mask = np.concatenate((mcl_mask, np.where((mcl_data >= 1e-16), 1., 0.)), axis = 0)
         CTZ      = np.concatenate((CTZ, get_CTZ(mcl_data, z)), axis = 0)
         times    = np.concatenate((times, mr_nc.variables[u'min10_0'][:]/60.), axis = 0)
     mr_nc.close()
@@ -53,8 +54,11 @@ if not os.path.isdir('../cloud_fractions/'):
 ## Full Domain ##
 # Collapse mcl_mask with horizontal mean to get cloud cover
 print 'Starting averaging for the whole domain'
+print 'cloud fraction time-height'
 cc_tz  = np.nanmean(mcl_mask, axis = (2, 3))*100.                      # f(t,z,y,x) -> f(t,z)
+print 'cloud fraction time series'
 cc_t   = np.nanmean(np.nanmax(mcl_mask, axis = 1), axis = (1, 2))*100. # f(t,z,y,x) -> f(t)
+print 'cloud top height time series'
 ctz_t = np.nanmean(CTZ, axis = (1, 2))                                 # f(t,y,x) -> f(t)
 
 # heights
@@ -72,6 +76,7 @@ ax.plot(times, cc_tz[:,iz3], 'b', label = 'Cloud Cover ('+str(round(z[iz3], 2))+
 ax.legend(loc = 2)
 ax.set_xlabel('Time (hours)')
 ax.set_ylabel('Cloud Fraction (%)')
+ax.set_title('Cloud fractions at different heights (whole domain)')
 fig.tight_layout()
 plt.savefig('../cloud_fractions/cc_timeseries_whole.png', dpi = 100)
 plt.close('all')
@@ -82,7 +87,7 @@ ax = fig.add_subplot(1, 1, 1)
 ax.plot(times, ctz_t, 'k', lw = 2)
 ax.set_xlabel('Time (hours)')
 ax.set_ylabel('Cloud Top Height (m)')
-ax.set_title('Cloud Top Height time series')
+ax.set_title('Cloud Top Height time series (whole domain)')
 fig.tight_layout()
 plt.savefig('../cloud_fractions/ctz_timeseries_whole.png', dpi = 100)
 plt.close('all')
@@ -90,19 +95,20 @@ plt.close('all')
 print 'Making a cloud cover hovmoller for the whole domain'
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1)
-H = ax.contourf(times, z, np.transpose(cc_tz), cmap = 'Greys_r', levels = np.linspace(0., 1., 21))
+H = ax.contourf(times, z, np.transpose(cc_tz), cmap = 'Blues_r', levels = np.linspace(0., 5., 11), extend = 'max')
 fig.colorbar(H, ax = ax, label = 'Cloud Fraction (%)')
 ax.set_xlabel('Time (hours)')
 ax.set_ylabel('Height (m)')
+ax.set_title('Hovmoller  (whole domain)')
 plt.savefig('../cloud_fractions/cf_hovmoller_whole.png', dpi = 100)
 plt.close('all')
 
-## Just the CT region ##
+############################## Just the CT region ##############################
 # Collapse mcl_mask along the wind direction to get cloud cover along the cloud trail
 ### Step 1: determine the heading of the cloud trail ###
 # Assume that the appropriate representative wind direction is equal to the 
 # initial conditions for the wind
-
+print 'Getting the along-wind cloud trail coordinates'
 # Initial conditions taken directly from namelist
 u_0 = np.array([-6.09,-7.02,-7.53,-7.89,-8.15,-8.36,-8.53,-8.68,-8.79,-8.89,
                 -8.97,-9.02,-9.07,-9.1,-9.12,-9.13,-9.14,-9.15,-9.16,-9.16,
@@ -123,6 +129,7 @@ z_0 = np.array([1.0000004,3.6666676,7.666668,13.000004,19.666672,27.666672,
                 1203.6668,1261.0004,1503.6672,1567.6668,1633.0004,8955.796,
                 9205.932,14947.828,15802.464,15802.464])
 
+print 'Taking a boundary layer mean wind'
 # Calculate the mean wind direction in the boundary layer (lowest ~ 850 m)
 z_1 = np.arange(0., 850.1, 1.)
 u_1 = interpolate.interp1d(y = u_0, x = z_0, fill_value = 'extrapolate')(z_1)
@@ -131,45 +138,51 @@ v_1 = interpolate.interp1d(y = v_0, x = z_0, fill_value = 'extrapolate')(z_1)
 U_0 = integrate.trapz(y = u_1, x = z_1)/850.
 V_0 = integrate.trapz(y = v_1, x = z_1)/850.
 
+print 'Calculating the wind speed and direction'
 wind_speed_0 = np.sqrt(U_0**2 + V_0**2)
 # Wind speed should be ~ 9.5 m/s
 wind_dir_0 = 360.*np.arctan(U_0/V_0)/(2.*np.pi)
 # Wind direction should be ~ 80 deg.
 
 ### Step 2: define a coordinate system along that heading ###
+print 'Defining a coordinate system along the wind'
 X = np.arange(0., 116000., 100.)
 Y = np.arange(0., 31900., 100.)
 X, Y = np.meshgrid(X, Y)
 
-# We know from our domain definition where the centre of the island should be
+# We know from our domain definition where the centre of the iosland should be
+print 'Determining where the island is'
 R_i = 1000.0*(50.0/np.pi)**0.5 # island radius
 x_c = 100000.0 + R_i
 y_c = 4*R_i
 
 # From this center point, draw line in either direction parallel to wind_dir_0
 # get the coordinates of this line at 100 m resolution.
+print 'Generating coordinates along our wind direction and across the island centre'
 x_cs, y_cs = get_cs_coords(x_c, y_c, wind_dir_0, X, Y, h = 100.0)
-R = - np.sign(x_c - x_cs)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)
+R = np.sign(x_c - x_cs)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)
 
 ### Step 3: collapse and average our arrays along our cloud trail in various ways ###
+print 'Making the cloud fraction time-height data'
 cc_tz_ct = np.zeros_like(cc_tz)
 for it in xrange(cc_tz.shape[0]):
     # bilinear_interpolation should return an array f(z, R)
-    # np.where should return only the bits that are downwind
+    # np.where should return only the downwind part of the cloud trail region
     # np.nanmean should return the mean along the R axis i.e. f(z)
     # then store back to cc_tz_ct
     # do the above for each time step
     cc_tz_ct[it,:]  = np.nanmean(np.where((R >= R_i), bilinear_interpolation(X, Y, mcl_mask[it,:,:,:], x_cs, y_cs, kind = 3)*100., np.nan), axis = 1)
 
+print 'Making the cloud fraction time series data'
 mcl_total_mask = np.nanmax(mcl_mask, axis = 1)*100. # f(t,z,y,x) -> f(t,y,x)
 # bilinear interpolation should then return an array f(t, R)
-# np.where should return only the bits that are downwind
+# np.where should return only the downwind part of the cloud trail region
 # np.nanmean should collapse along the downwind direction f(t, R) -> f(t)
-cc_t_ct = np.nanmean(np.where((R >= R_i), bilinear_interpolation(X, Y, mcl_total_mask, x_cs, y_cs, kind = 3), np.nan), axis = 1)
+cc_t_ct = np.nanmean(np.where((R >= 0), bilinear_interpolation(X, Y, mcl_total_mask, x_cs, y_cs, kind = 3), np.nan), axis = 1)
 
-ctz_t_ct = np.nanmean(np.where((R >= R_i), bilinear_interpolation(X, Y, CTZ, x_cs, y_cs, kind = 3), np.nan), axis = 1)
+print 'Making the cloud top height time series data'
+ctz_t_ct = np.nanmean(np.where((R >= 0), bilinear_interpolation(X, Y, CTZ, x_cs, y_cs, kind = 3), np.nan), axis = 1)
 
-### Step 4: plot it out ###
 print 'Making the cloud cover time series for the cloud trail region'
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1)
@@ -180,8 +193,10 @@ ax.plot(times, cc_tz_ct[:,iz3], 'b', label = 'Cloud Cover ('+str(round(z[iz3], 2
 ax.legend(loc = 2)
 ax.set_xlabel('Time (hours)')
 ax.set_ylabel('Cloud Fraction (%)')
+ax.set_title('Cloud fractions at different heights (cloud trail region)')
 fig.tight_layout()
 plt.savefig('../cloud_fractions/cc_timeseries_cloudtrail.png', dpi = 100)
+plt.show()
 plt.close('all')
 
 print 'Making the cloud top height time series for the cloud trail region'
@@ -190,17 +205,22 @@ ax = fig.add_subplot(1, 1, 1)
 ax.plot(times, ctz_t_ct, 'k', lw = 2)
 ax.set_xlabel('Time (hours)')
 ax.set_ylabel('Cloud Top Height (m)')
-ax.set_title('Cloud Top Height time series')
+ax.set_title('Cloud Top Height time series (cloud trail region)')
 fig.tight_layout()
 plt.savefig('../cloud_fractions/ctz_timeseries_cloudtrail.png', dpi = 100)
+plt.show()
 plt.close('all')
 
 print 'Making a cloud cover hovmoller for the cloud trail region'
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1)
-H = ax.contourf(times, z, np.transpose(cc_tz_ct), cmap = 'Greys_r', levels = np.linspace(0., 1., 21))
+H = ax.contourf(times, z, np.transpose(cc_tz_ct), cmap = 'Blues_r', levels = np.linspace(0., 5., 11), extend = 'max')
 fig.colorbar(H, ax = ax, label = 'Cloud Fraction (%)')
 ax.set_xlabel('Time (hours)')
 ax.set_ylabel('Height (m)')
+ax.set_title('Hovmoller  (cloud trail region)')
 plt.savefig('../cloud_fractions/cf_hovmoller_cloudtrail.png', dpi = 100)
+plt.show()
 plt.close('all')
+
+

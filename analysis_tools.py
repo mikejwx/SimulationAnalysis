@@ -190,7 +190,7 @@ def get_CC(m_cl, start = 0, end = None, threshold = 0.):
     
     return cc_profile
 
-def get_CTZ(mc, z, threshold = 1e-08):
+def get_CTZ(mc, z, threshold = 1e-16):
     """
     takes a 3- or 4-dimensional array of total cloud water mixing ratio (i.e. mcl
     + mcf) and a 1-dimensional array of heights.
