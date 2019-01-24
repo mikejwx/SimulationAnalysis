@@ -117,6 +117,7 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
     
     # Convert to the correct units
     if (TIN1[0] - 273.15) < 0:
+        # then the given temperatures are in celcius and need to be converted
         Te = TIN1 + 273.15 # converts the environment temperature to Kelvin
     else:
         Te = TIN1*1.
@@ -139,7 +140,7 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
         Q_0  = np.mean(interpolate.interp1d(PIN, QIN)(p_dummy)) # get the surface specific humidity
         T_d0 = getDew(Q_0, PIN[0]) # get the surface dew point
     else:
-        print('WARNING: Unknown parcel type!!!')
+        print 'WARNING: Unknown parcel type!!!'
     
     # Calculate the LCL temperature using the University of Wyoming's method (Bolton, 1980)
     A = 1./(T_d0 - 56.)
@@ -148,7 +149,6 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
     
     ## Find the LFC ##
     LFC  = getLFC(Tp, Te, QIN, PIN) # parcel temperature at level of free convection
-    print('LFC = ' + str(LFC))
     
     ## Initialise the parcel ascent list and the CAPE to accumulate ##
     Tps  = [Tp] # parcel temperature
@@ -156,7 +156,6 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
     CIN  = 0 # Convective Inhibition
     
     ### Start accumulating CAPE ###
-    #print LFC
     if LFC != None:
         # an LFC has been found
         for level in range(1,len(Te)):
@@ -236,9 +235,14 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
     # calculate the pressure of the LCL and the LFC
     LCLp = interpolate.interp1d(Tps, PIN, fill_value = 'extrapolate')(LCL)#PIN[0]*(LCL/Te[0])**(cpd/R)
     #print LCLp
-    LFCp = interpolate.interp1d(Tps, PIN, fill_value = 'extrapolate')(LFC)#PIN[0]*(LFC/Te[0])**(cpd/R)
+    if LFC != None:
+        LFCp = interpolate.interp1d(Tps, PIN, fill_value = 'extrapolate')(LFC)#PIN[0]*(LFC/Te[0])**(cpd/R)
+    else:
+        LFCp = None
     #print LFCp
+    
     return CAPE, CIN, Tps, LCLp, LFCp
+    
 
 def PTtoTemp(theta, PIN):
     """
@@ -281,7 +285,7 @@ def getLFC(Tp, Te, QIN, PIN):
     G_d  = g/cpd
     
     # Lets get some unit conversions going
-    Q_0  = np.mean(QIN[0]) # surface specific humidity
+    Q_0  = QIN[0] # surface specific humidity
     T_d0 = getDew(Q_0, PIN[0]) # surface dew point
     
     # Use the University of Wyoming's formula (Bolton, 1980) to find LCL temperature, K
@@ -293,7 +297,7 @@ def getLFC(Tp, Te, QIN, PIN):
     for level in range(len(Te)-1):
         # for each observed vertical level
         p_level_half = 0.5*(PIN[level+1] + PIN[level]) # pressure in between current level and the level above
-        rho = (p_level_half*100.)/(R*Tp) # air density in the layer between the current level and the level above
+        rho = (p_level_half*100.)/(Rd*Tp) # air density in the layer between the current level and the level above
         dz = -(PIN[level+1] - PIN[level])*100./(rho*g) # hydrostatic balance to get the height between the two levels e.g. dp/rho*g, rho = p/RT
         if Tp > LCL:
             #print 'Parcel is below the LCL'
@@ -555,30 +559,30 @@ def plotSkewT(temp, t_dew, p, u = np.array([-999]), v = np.array([-999]),
     ## plot the sounding ##
     # make sure our input are lists
     if type(temp) != list:
-        print( 'WARNING! converting to a list of temperature profiles.')
+        #print( 'WARNING! converting to a list of temperature profiles.')
         temp = [temp]
     if type(t_dew) != list:
-        print( 'WARNING! Converting to a list of dewpoint profiles.')
+        #print( 'WARNING! Converting to a list of dewpoint profiles.')
         t_dew = [t_dew]
     if type(p) != list:
-        print( 'WARNING! Converting to a list of pressure profiles.')
+        #print( 'WARNING! Converting to a list of pressure profiles.')
         p = [p]
     if type(u) != list:
-        print( 'WARNING! Converting to a list of uwind profiles.')
+        #print( 'WARNING! Converting to a list of uwind profiles.')
         u = [u]
     if type(v) != list:
-        print( 'WARNING! Converting to a list of vwind profiles.')
+        #print( 'WARNING! Converting to a list of vwind profiles.')
         v = [v]
     
     # some error checking to ensure that there is a matching temperature and dewpoint list
     if len(temp) != len(t_dew):
         print( 'ERROR! You have an unequal number of temperature and dewpoint profiles')
     if len(temp_col) != len(temp):
-        print( 'WARNING! The number of temperature colors provided does not match the number of temperature profiles. Taking the same dewpoint color for each profile.')
+        #print( 'WARNING! The number of temperature colors provided does not match the number of temperature profiles. Taking the same dewpoint color for each profile.')
         while len(temp_col) != len(temp):
             temp_col.append(temp_col[-1])
     if len(dew_col) != len(t_dew):
-        print( 'WARNING! The number of dewpoint colors provided does not match the number of dewpoint profiles. Taking the same dewpoint color for each profile.')
+        #print( 'WARNING! The number of dewpoint colors provided does not match the number of dewpoint profiles. Taking the same dewpoint color for each profile.')
         while len(dew_col) != len(t_dew):
             dew_col.append(dew_col[-1])
     
