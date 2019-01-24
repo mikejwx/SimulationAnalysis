@@ -270,22 +270,6 @@ def get_cs(it):
     plt.savefig('AlongWind_smoothed_T'+"{0:04d}".format(int(times[it]))+'.png', dpi = 100)
     #plt.show()
     
-    # For the skewT plots
-    # Get a sounding every 5 km downwind
-    h  = 100.0 # copied from above because for some reason, we cannot see this here.
-    i_cs = np.where(R%5000. < h)[0]
-    temp_cs_soundings = bilinear_interpolation(X, Y, bouy_nc.variables[temp_key][it,:,:,:]*1., x_cs[i_cs], y_cs[i_cs], kind = 0) # nearest neighbor
-    pres_cs_soundings = bilinear_interpolation(X, Y, fluxes_nc.variables[pres_key][it,:,:,:]*1., x_cs[i_cs], y_cs[i_cs], kind = 0)
-    q_cs_soundings    = bilinear_interpolation(X, Y, bouy_nc.variables[q_key][it,:,:,:]*1., x_cs[i_cs], y_cs[i_cs], kind = 0)
-    dew_cs_soundings  = getDew(q_cs_soundings, pres_cs_soundings/100.)
-    
-    #Plot the soundings as well
-    for i in xrange(len(i_cs)):
-        plotSkewT(temp_cs_soundings[:,i]-273.15, dew_cs_soundings[:,i]-273.15, pres_cs_soundings[:,i]/100., my_title = 'T+' + str(int(times[it])) + 'mins, ' + str(int(R[i_cs[i]]/1000.)) + 'km downwind')
-        plt.savefig('AlongWind_sounding_T'+"{0:04d}".format(int(times[it]))+'_R'+"{0:02d}".format(int(R[i_cs[i]]/1000.))+'.png', dpi = 100)
-        if it == 0:
-            plt.show()
-        plt.close('all')
     #================================= Section 5 ==================================#
     #                                                                              #
     # Calculate cross sections perpendicular to the flow and plot them             #
