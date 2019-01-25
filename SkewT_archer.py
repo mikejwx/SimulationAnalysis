@@ -157,17 +157,127 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
     
     ### Start accumulating CAPE ###
     if LFC != None:
-        # an LFC has been found
+        # an LFC has been found, there should be some CAPE at some level
         for level in range(1,len(Te)):
             p_level_half = 0.5*(PIN[level] + PIN[level-1])
             # convert the thickness of the layer from pressure to height units
             rho = (p_level_half*100.)/(Rd*Tp)
             dz = - (PIN[level] - PIN[level-1])*100./(rho*g) # dp/rho*g, rho = p/RT
-
+            #print 'Tp:' + str(int(Tp)) + '\nLCL:' + str(int(LCL)) + '\nLFC:' + str(int(LFC))
             if PIN[level] != 0.0:
                 #print round(Tp, 1)
                 if Tp >= LCL:
-                    #print 'Parcel is below the LCL'
+                    #print 'Original parcel below LCL'
+                    # if the parcel is warmer than the LCL it is below the LCL and should cool at the dry adiabatic lapse rate
+                    Tp -= G_d*dz # dry adiabatic lapse rate
+                    if Tp >= LCL:
+                        #print 'Lifted parcel is still below LCL'
+                        # if the new parcel temperature is still below the LCL append it and move on
+                        Tps.append(Tp)
+                    else:
+                        ## Step 1: undo the ascent
+                        Tp += G_d*dz
+                        ## Step 2: find the difference between the parcel temperature and the LCL temperature
+                        dT = Tp - LCL
+                        # find the height change needed for the parcel to get to the LCL temperature
+                        delta_z = dT/G_d
+                        ## Step 3: set parcel temperature to the LCL and then lift the parcel the remaining distance but moist adiabatically
+                        Tp = LCL
+                        p_level_middle = 0.5*(PIN[level] + (PIN[level] - PIN[level-1])*delta_z/dz + PIN[level-1])
+                        Tp -= getGM(LCL, p_level_middle)*(dz - delta_z)
+                        # append the correct parcel temperature
+                        Tps.append(Tp)
+                        if Tps[-1] >= LFC:
+                            #print 'Lifted parcel is now above LCL, but below the LFC'
+                            # If we're still below the LFC, only accumulate some CIN
+                            Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
+                            Te_level_half = 0.5*(Te[level] + Te[level-1])
+                            CIN += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
+                            #print 'Accumulated some CIN between LCL and Tps[-1]'
+                        else:
+                            #print 'Lifted parcel is now above the LCL, and above the LFC'
+                            # If we're above the LFC, accumulate CIN between LCL and LFC
+                            # Also accumulate CAPE from LFC to Tp
+                            
+                            # Find the distance between the LCL and LFC
+                            dz0 = (LFC - LCL)/getGM(0.5*(LCL + LFC), p_level_middle)
+                            
+                            # accumulate CIN in the LCL -> LFC layer
+                            Tp_level_half = 0.5*(LCL + LFC)
+                            Te_level_half = 0.5*(Te[level] + Te[level-1]) # An easy approximation
+                            CIN += g*(Tp_level_half - Te_level_half)*dz0/Te_level_half
+                            
+                            # find the distance between the LFC and Tp
+                            dz1 = (Tps[-1] - LFC)/getGM(0.5*(LFC + Tps[-1]), p_level_middle)
+                            
+                            # accumulate CAPE in the LFC -> Tp layer
+                            Tp_level_half = 0.5*(Tps[-1] + LFC)
+                            Te_level_half = 0.5*(Te[level] + Te[level-1]) # An easy approximation
+                            if Tp_level_half > Te_level_half:
+                                # if the parcel is warmer than the environment, accumulate CAPE
+                                CAPE += g*(Tp_level_half - Te_level_half)*dz1/Te_level_half
+                            #print 'Accumulated some CIN between LCL and LFC, then some CAPE between LFC and Tps[-1]'
+                elif Tp >= LFC:
+                    #print 'Original parcel between LCL and LFC'
+                    # if the parcel is cooler than the LCL but warmer than the LFC it should cool at the moist adiabatic lapse rate, but not accumulate CAPE
+                    Tp -= getGM(Tps[-1], p_level_half)*dz
+                    # append the correct parcel temperature
+                    Tps.append(Tp)
+                    if Tp >= LFC:
+                        #print 'Lifted parcel is still below the LFC'
+                        # If we're still below the LFC, only accumulate CIN
+                        Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
+                        Te_level_half = 0.5*(Te[level] + Te[level-1])
+                        CIN += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
+                        #print 'Accumulated some CIN'
+                    else:
+                        #print 'Lifted parcel is now above the LFC'
+                        # If we're above the LFC, accumulate CIN between Tps[-2] and LFC
+                        # Also accumulate CAPE from LFC to Tps[-1]
+                        
+                        # Find the distance between the Tps[-2] and LFC
+                        dz0 = (LFC - Tps[-2])/getGM(0.5*(LCL + LFC), p_level_half) # An easy approximation for pressure
+                        
+                        # accumulate CIN in the Tps[-2] -> LFC layer
+                        Tp_level_half = 0.5*(LFC - Tps[-2])
+                        Te_level_half = 0.5*(Te[level] + Te[level-1]) # An easy approximation
+                        CIN += g*(Tp_level_half - Te_level_half)*dz0/Te_level_half
+                        
+                        # find the distance between the LFC and Tps[-1]
+                        dz1 = (Tps[-1] - LFC)/getGM(0.5*(Tps[-1] + LFC), p_level_half)
+                        
+                        # accumulate CAPE in the LFC -> Tp layer
+                        Tp_level_half = 0.5*(Tps[-1] + LFC)
+                        Te_level_half = 0.5*(Te[level] + Te[level-1]) # An easy approximation
+                        if Tp_level_half > Te_level_half:
+                            # if the parcel is warmer than the environment, accumulate CAPE
+                            CAPE += g*(Tp_level_half - Te_level_half)*dz1/Te_level_half
+                        #print 'Accumulated some CIN between Tps[-2] and LFC, then some CAPE between LFC and Tps[-1]'
+                else:
+                    # Parcel is above the LFC, cool at moist adiabatic lapse rate and accumulate CAPE
+                    Tp -= getGM(Tps[-1], p_level_half)*dz
+                    Tps.append(Tp)
+                    
+                    # get the mean temperature between levels for the parcel and environment
+                    Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
+                    Te_level_half = 0.5*(Te[level] + Te[level-1])
+                    if Tp_level_half > Te_level_half:
+                        # if the parcel is warmer than the environment, accumulate CAPE
+                        CAPE += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
+                    # Don't accumulate CIN because we've already passed the LFC
+            else:
+                Tp -= G_d*dz
+                Tps.append(Tp)
+    else:
+        # there is no LFC
+        for level in range(1,len(Te)):
+            p_level_half = 0.5*(PIN[level] + PIN[level-1])
+            # convert the thickness of the layer from pressure to height units
+            rho = (p_level_half*100.)/(Rd*Tp)
+            dz = - (PIN[level] - PIN[level-1])*100./(rho*g) # dp/rho*g, rho = p/RT
+            
+            if PIN[level] != 0.0:
+                if Tp >= LCL:
                     # if the parcel is warmer than the LCL it is below the LCL and should cool at the dry adiabatic lapse rate
                     Tp -= G_d*dz # dry adiabatic lapse rate
                     if Tp >= LCL:
@@ -187,59 +297,25 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
                         Tp -= getGM(LCL, p_level_middle)*(dz - delta_z)
                         # append the correct parcel temperature
                         Tps.append(Tp)
-                elif Tp >= LFC:
-                    #print 'Parcel is above the LCL and below the LFC'
-                    # if the parcel is cooler than the LCL but warmer than the LFC it should cool at the moist adiabatic lapse rate, but not accumulate CAPE
-                    Tp -= getGM(Tps[-1], p_level_half)*dz
-                    Tps.append(Tp)
-                    
-                    Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
-                    Te_level_half = 0.5*(Te[level] + Te[level-1])
-                    CIN += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
-                else:
-                    #print 'Parcel is above the LFC'
-                    # otherwise cool at moist adiabatic lapse rate and accumulate CAPE
-                    Tp -= getGM(Tps[-1], p_level_half)*dz
-                    Tps.append(Tp)
-                    
-                    # get the mean temperature between levels for the parcel and environment
-                    Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
-                    Te_level_half = 0.5*(Te[level] + Te[level-1])
-                    #print [round(Tp_level_half, 1), round(Te_level_half, 1)]
-                    if Tp_level_half > Te_level_half:
-                        # if the parcel is warmer than the environment, accumulate CAPE
-                        CAPE += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
-            else:
-                Tp -= G_d*dz
-                Tps.append(Tp)
-    else:
-        # there is no LFC
-        for level in range(1,len(Te)):
-            p_level_half = 0.5*(PIN[level] + PIN[level-1])
-            # convert the thickness of the layer from pressure to height units
-            rho = (p_level_half*100.)/(Rd*Tp)
-            dz = - (PIN[level] - PIN[level-1])*100./(rho*g) # dp/rho*g, rho = p/RT
-            
-            if PIN[level] != 0.0:
-                if Tp >= LCL:
-                    # if below the LCL, cool dry adiabatically
-                    Tp -= G_d*dz
                 else:
                     # above the LCL and cool moist adiabatcally
                     Tp -= getGM(Tps[-1], p_level_half)*dz
-                Tps.append(Tp)
+                    Tps.append(Tp)
+                    
+                    # Accumulate some CIN
+                    Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
+                    Te_level_half = 0.5*(Te[level] + Te[level-1])
+                    CIN += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
             else:
                 Tp -= G_d*dz
                 Tps.append(Tp)
     
     # calculate the pressure of the LCL and the LFC
     LCLp = interpolate.interp1d(Tps, PIN, fill_value = 'extrapolate')(LCL)#PIN[0]*(LCL/Te[0])**(cpd/R)
-    #print LCLp
     if LFC != None:
         LFCp = interpolate.interp1d(Tps, PIN, fill_value = 'extrapolate')(LFC)#PIN[0]*(LFC/Te[0])**(cpd/R)
     else:
         LFCp = None
-    #print LFCp
     
     return CAPE, CIN, Tps, LCLp, LFCp
     

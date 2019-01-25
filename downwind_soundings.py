@@ -1,9 +1,10 @@
 #Plot skewT diagrams every 5 km downwind of the island.
 import numpy as np
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 from scipy import interpolate, integrate
 from netCDF4 import Dataset
-from analysis_tools import bilinear_interpolation, get_cs_coords
+from analysis_tools import bilinear_interpolation, get_cs_coords, send_email
 from SkewT_archer import *
 import os
 
@@ -32,7 +33,7 @@ def get_soundings(it):
         plotSkewT(temp_cs_soundings[:-1,i]-273.15, dew_cs_soundings[:-1,i]-273.15, pres_cs_soundings[:-1,i]/100., my_title = 'T+' + str(int(times[it])) + 'mins, ' + str(int(R[i_cs[i]]/1000.)) + 'km downwind', CAPE = True)
         plt.savefig('../Soundings/Radius_'+"{0:02d}".format(int(R[i_cs[i]]/1000.))+'/AlongWind_sounding_T'+"{0:04d}".format(int(times[it]))+'_R'+"{0:02d}".format(int(R[i_cs[i]]/1000.))+'.png', dpi = 100)
         plt.close('all')
-        print 'Sounding Complete.'
+        print "{0:02d}".format(int(R[i_cs[i]]/1000.)) + 'km Sounding Complete.'
 
 print 'Getting the along-wind cloud trail coordinates'
 # Initial conditions taken directly from namelist
@@ -88,7 +89,7 @@ print 'Generating coordinates along our wind direction and across the island cen
 x_cs, y_cs = get_cs_coords(x_c, y_c, wind_dir_0, X, Y, h = 100.0)
 R = np.sign(x_c - x_cs)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)
 
-hours = ["{0:02d}".format(h) for h in xrange(9, 24,3)]
+hours = ["{0:02d}".format(h) for h in xrange(0, 24, 3)]
 for hour in hours:
     # read in the netCDFs
     bouy_nc   = Dataset('../bouy_' + hour + '.nc', 'r')
@@ -108,3 +109,5 @@ for hour in hours:
 
     bouy_nc.close()
     fluxes_nc.close()
+
+send_email(message = "Finished plotting downwind soundings!", subject = "downwind_soundings.py", attachments = ['../Soundings/Radius_10/AlongWind_sounding_T0720_R10.png', '../Soundings/Radius_20/AlongWind_sounding_T0720_R10.png'], isAttach = True)
