@@ -110,30 +110,42 @@ def find_h(theta_v, u, v, z):
     This method uses a modified Richardson number approach and vertical profiles
     of virtual potential temperature (theta_v), u- and v- wind components to
     estimate the boundary layer height.
+    ----------------------------------------------------------------------------
+    INPUT:
+    theta_v = f(z,y,x)
+    u       = f(z,y,x) -> regridded to theta points
+    v       = f(z,y,x) -> regridded to theta points
+    z       = f(z)     -> heights in theta levels
     
-    theta_v = f(z)
-    u       = f(z)
-    v       = f(z)
+    OUTPUT:
+    z_i     = f(y,x)
     """
+    
     # Requires numpy arrays
     import numpy as np
     # Requires interpolation routines from scipy
     from scipy import interpolate
     
     # Constants
-    g = 9.81
+    g    = 9.81
+    Ri_c = 0.25 # Critical Richardson Number distinguishing between laminar and turbulent flow
     
     # Need a first guess for the height of the boundary layer.
-    h   = np.arange(1.0, 6000.1, 1.0) # m
-    z_s = 0.1*h
+    z_s = 0.1*z # approximation to the surface layer depth
     
-    theta_v = interpolate.interp1d(x = z, y = theta_v, fill_value = 'extrapolate')
-    u       = interpolate.interp1d(x = z, y = u, fill_value = 'extrapolate')
-    v       = interpolate.interp1d(x = z, y = v, fill_value = 'extrapolate')
+    Ri_g = np.zeros((len(z),theta_v.shape[1], theta_v.shape[2]))
+    Z = np.repeat(z, theta_v.shape[1]*theta_v.shape[2], axis = 0).reshape(len(z), theta_v.shape[1], theta_v.shape[2])
     
-    Ri_g = (g/theta_v(z_s))*(theta_v(h) - theta_v(z_s))*(h - z_s)/((u(h) - u(z_s))**2. + (v(h) - v(z_s))**2.)
+    theta_v = interpolate.interp1d(x = z, y = theta_v, fill_value = 'extrapolate', axis = 0)
+    u       = interpolate.interp1d(x = z, y = u, fill_value = 'extrapolate', axis = 0)
+    v       = interpolate.interp1d(x = z, y = v, fill_value = 'extrapolate', axis = 0)
     
-    z_i = h[np.where(np.min(np.abs(Ri_g - 0.30)) == np.abs(Ri_g - 0.30))[0][0]]
+    for k in xrange(len(z)):
+        Ri_g[k,:,:] = (g/theta_v(z_s[k]))*(theta_v(z[k]) - theta_v(z_s[k]))*(z[k] - z_s[k])/((u(z[k]) - u(z_s[k]))**2. + (v(z[k]) - v(z_s[k]))**2.)
+    
+    
+    iz, iy, ix = np.where(np.nanmin(np.abs(Ri_g - Ri_c), axis = 0) == np.abs(Ri_g - Ri_c))
+    z_i = Z[iz, iy, ix].reshape(Z.shape[1], Z.shape[2])
     
     return z_i
 
