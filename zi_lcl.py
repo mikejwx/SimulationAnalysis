@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 from netCDF4 import Dataset
 from scipy import interpolate
 from datetime import datetime as dt
@@ -107,7 +108,6 @@ for hour in hours:
             lcl_var[it-it_start,:,:] = lcl(theta_nc.variables[temp_key][it,0,:,:]*1.,theta_nc.variables[q_key][it,0,:,:]*1., pres_nc.variables[pres_key][it,:,:,:]*1., z_theta)
             print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating ctz...'
             ctz_var[it-it_start,:,:] = get_CTZ(mr_nc.variables[mcl_key][it,:,:,:], z_theta)
-            
         # close the new netcdf
         zi_nc.close()
         print '[' + dt.now().strftime("%H:%M:%S") + '] Closing the netCDF'
@@ -188,6 +188,6 @@ ax2.set_xlabel('Time (hours)')
 
 fig.tight_layout()
 plt.savefig('../zi_lcl_cc_lwp.png', dpi = 100)
-plt.show()
+plt.close('all')
 
 

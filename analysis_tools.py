@@ -134,19 +134,23 @@ def find_h(theta_v, u, v, z):
     z_s = 0.1*z # approximation to the surface layer depth
     
     Ri_g = np.zeros((len(z),theta_v.shape[1], theta_v.shape[2]))
-    Z = np.repeat(z, theta_v.shape[1]*theta_v.shape[2], axis = 0).reshape(len(z), theta_v.shape[1], theta_v.shape[2])
     
     theta_v = interpolate.interp1d(x = z, y = theta_v, fill_value = 'extrapolate', axis = 0)
     u       = interpolate.interp1d(x = z, y = u, fill_value = 'extrapolate', axis = 0)
     v       = interpolate.interp1d(x = z, y = v, fill_value = 'extrapolate', axis = 0)
     
-    for k in xrange(len(z)):
+    for k in xrange(1, len(z)):
         Ri_g[k,:,:] = (g/theta_v(z_s[k]))*(theta_v(z[k]) - theta_v(z_s[k]))*(z[k] - z_s[k])/((u(z[k]) - u(z_s[k]))**2. + (v(z[k]) - v(z_s[k]))**2.)
     
-    
-    iz, iy, ix = np.where(np.nanmin(np.abs(Ri_g - Ri_c), axis = 0) == np.abs(Ri_g - Ri_c))
-    z_i = Z[iz, iy, ix].reshape(Z.shape[1], Z.shape[2])
-    
+    z_i = np.zeros((Ri_g.shape[1], Ri_g.shape[2]))
+    for j in xrange(Ri_g.shape[1]):
+        for i in xrange(Ri_g.shape[2]):
+            # Assume that Ri_g is monotonically increasing in the boundary layer
+            k = 0
+            while Ri_g[k,j,i] <= Ri_c:
+                k += 1
+            z_i[j,i] = (z[k] - z[k-1])*(Ri_c - Ri_g[k-1,j,i])/(Ri_g[k,j,i] - Ri_g[k-1,j,i]) + z[k-1]
+        
     return z_i
 
 def get_TKE(U, V, W, rho = 1., start = 0, end = None):
