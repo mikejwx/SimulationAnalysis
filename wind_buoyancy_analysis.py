@@ -14,22 +14,23 @@ plt.switch_backend('agg')
 from netCDF4 import Dataset
 from scipy import interpolate, integrate
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from analysis_tools import send_email, regrid, summary, transform_winds
+from analysis_tools import send_email, summary, transform_winds
+from datetime import datetime as dt
 
 ## First read some data
 # STASH codes
-print 'Generating STASH codes...'
-u_key = u'STASH_m01s00i002'
-v_key = u'STASH_m01s00i003'
+print '[' + dt.now().strftime('%H:%M:%S') + '] Generating STASH codes...'
+u_key     = u'STASH_m01s00i002'
+v_key     = u'STASH_m01s00i003'
 theta_key = u'STASH_m01s00i004'
-w_key = u'STASH_m01s00i150'
-mv_key = u'STASH_m01s00i391'
-z_key = u'thlev_zsea_theta'
+w_key     = u'STASH_m01s00i150'
+q_key     = u'STASH_m01s00i010'
+z_key     = u'thlev_zsea_theta'
 z_key_rho = u'rholev_zsea_rho'
-lsm_key = u'lsm'
+lsm_key   = u'lsm'
 
 lsm  = Dataset('/work/n02/n02/xb899100/island_masks/lsm50.nc', 'r')
-print ' Getting the land-sea mask...'
+print '[' + dt.now().strftime('%H:%M:%S') + '] Getting the land-sea mask...'
 my_lsm = lsm.variables[lsm_key][0,0,:,:]*1.
 lsm.close()
 
@@ -41,10 +42,10 @@ my_heights = [1200.0, 700.0, 200.0] # m
 # Arguments for plotting the thermodynamics
 color_maps = {'theta' : 'hot',
               'w'     : 'bwr',
-              'mv'    : 'BrBG'}
+              'q'     : 'BrBG'}
 label = {'theta' : '$\\theta$ (K)',
-         'w' : 'w (m s$^{-1}$)',
-         'mv' : 'm$_v$ (g kg$^{-1}$)'}
+         'w'     : 'w (m s$^{-1}$)',
+         'q'     : 'q$_v$ (g kg$^{-1}$)'}
 
 ### Create synthetic surface flux diurnal cycle plot data ###
 t0 = 720.
@@ -55,36 +56,27 @@ E = 250.*np.cos(0.5*np.pi*(t0 - t)/dt2)**1.3
 
 for hour in hours:
     # Open the netCDFs
-    print 'Opening our netCDFs...'
-    u    = Dataset('u_'+hour+'.nc', 'r')
-    v    = Dataset('v_'+hour+'.nc', 'r')
-    bouy = Dataset('bouy_'+hour+'.nc', 'r')
-    mr   = Dataset('mr_'+hour+'.nc', 'r')
+    print '[' + dt.now().strftime('%H:%M:%S') +'] Opening our netCDFs...'
+    wind_nc = Dataset('../wind_'+hour+'.nc', 'r')
+    bouy_nc = Dataset('../bouy_'+hour+'.nc', 'r')
     
     # Get an array of heights
-    print 'Get array of heights...'
-    z = bouy.variables[z_key][:]*1.
+    print '[' + dt.now().strftime('%H:%M:%S') +'] Get array of heights...'
+    z = bouy_nc.variables[z_key][:]*1.
     
-    print 'Get array of times...'
-    times = bouy.variables[u'min10_0'][:]*1.
+    print '[' + dt.now().strftime('%H:%M:%S') +'] Get array of times...'
+    times = bouy_nc.variables[u'min10_0'][:]*1.
     
-    # u-wind, needs to be regridded
-    print 'Regridding u...'
-    my_u = regrid(bouy, u, u_key)[:]*1.
-    # v-wind
-    print 'Regridding v...'
-    my_v = regrid(bouy, v, v_key)[:]*1.
+    # theta and q
+    print '[' + dt.now().strftime('%H:%M:%S') +'] Reading thermodynamic variables theta and q...'
+    my_theta = bouy_nc.variables[theta_key][:]*1.
+    my_q     = bouy_nc.variables[q_key][:]*1.
     
-    # theta
-    print 'Reading theta...'
-    my_theta = bouy.variables[theta_key][:]*1.
-    # w-wind
-    print 'Reading w...'
-    my_w = bouy.variables[w_key][:]*1.
-    
-    # mixing ratio
-    print 'Regridding mv...'
-    my_mv = regrid(bouy, mr, mv_key)[:]*1.
+    # wind components
+    print '[' + dt.now().strftime('%H:%M:%S') +'] Reading winds...'
+    my_u = wind_nc.variables[u_key][:]*1.
+    my_v = wind_nc.variables[v_key][:]*1.
+    my_w = wind_nc.variables[w_key][:]*1.
     
     if hour == '00':
         # Get the indexes for the heights at which we want to plot the flow-relative winds
@@ -97,15 +89,16 @@ for hour in hours:
     # List my variables
     variables = {'theta' : my_theta,
                  'w'     : my_w,
-                 'mv'    : my_mv*1000.}
-    
-    # Get the flow-relative winds and the heights at which we want to plot them
-    print 'Transforming the winds to the rotated coordinate system'
-    my_s, my_n = transform_winds(my_u, my_v)
+                 'q'     : my_q*1000.}
     
     # loop through all the times in this netCDF on the hour
     its = np.where(times%60. == 0)[0]
     its = [it for it in its if it != 0]
+    
+    # Get the flow-relative winds and the heights at which we want to plot them
+    print '[' + dt.now().strftime('%H:%M:%S') +'] Transforming the winds to the rotated coordinate system'
+    my_s, my_n = transform_winds(my_u, my_v)
+    
     for it in its:
         # manufacture some horizontal grid coordinates
         X = np.arange(0., 116000., 100.)/1000.
@@ -129,7 +122,7 @@ for hour in hours:
                 
                 titles = {'theta' : 'Potential Temperature (K) at T+' + str(round(times[it],2)) + 'mins',
                     'w'     : 'Vertical Velocity (m s$^{-1}$) at T+' + str(round(times[it],2)) + 'mins',
-                    'mv'    : 'Water Vapour Mixing Ratio (g kg$^{-1}$) at T+' + str(round(times[it],2)) + 'mins'}
+                    'q'     : 'Specific Humidity (g kg$^{-1}$) at T+' + str(round(times[it],2)) + 'mins'}
                 
                 pp = my_heights.index(height)
                 ax = fig.add_subplot(len(my_heights), 1, pp+1, adjustable = 'box', aspect = 1.)
@@ -140,7 +133,7 @@ for hour in hours:
                 ax.set_xlabel('x (km)')
                 ax.set_ylabel('y (km)')
                 plt.tight_layout()
-        plt.savefig(key + '_'+"{0:04d}".format(int(times[it]))+'mins.png', dpi = 100)
+        plt.savefig('../HorizontalSlices/' + key + '_'+"{0:04d}".format(int(times[it]))+'mins.png', dpi = 100)
         plt.close('all')
         
         #==============================================================================#
@@ -149,7 +142,7 @@ for hour in hours:
         #                                                                              #
         #==============================================================================#
         
-        print 'Plotting flow-relative wind anomalies and vertical velocities'
+        print '[' + dt.now().strftime('%H:%M:%S') +'] Plotting flow-relative wind anomalies and vertical velocities'
                 
         fig = plt.figure(figsize = (16, 8))
         gs = mpl.gridspec.GridSpec(nrows = 3, ncols = 2, height_ratios = [1,1,1], width_ratios = [1,1])
@@ -173,6 +166,8 @@ for hour in hours:
         ax.set_title('Cross-flow Anomaly (m/s) at '+str(round(z[iz1], 2))+'m')
         ax.set_ylabel('y (km)')
         ax.set_xticklabels([''])
+        ax.annotate('C)', (0, 1), xytext=(5,-5),xycoords='axes fraction',
+            textcoords='offset points',ha='left', va='top')
 
         ax = fig.add_subplot(gs[0,1], adjustable = 'box', aspect = 1.)
         CS2 = ax.contourf(X, Y, my_s[it,iz2,:,:] - my_s[it,iz2,:,:].mean(), cmap = 'bwr', levels = np.linspace(-2., 2., 9), extend = 'both')
@@ -182,6 +177,8 @@ for hour in hours:
         ax.set_title('Along-flow Anomaly (m/s) at '+str(round(z[iz2], 2))+'m')
         ax.set_yticklabels([''])
         ax.set_xticklabels([''])
+        ax.annotate('B)', (0, 1), xytext=(5,-5),xycoords='axes fraction',
+            textcoords='offset points',ha='left', va='top')
 
         ax = fig.add_subplot(gs[1,1], adjustable = 'box', aspect = 1.)
         CN2 = ax.contourf(X, Y, my_n[it,iz2,:,:] - my_n[it,iz2,:,:].mean(), cmap = 'bwr', levels = np.linspace(-2., 2., 9), extend = 'both')
@@ -191,6 +188,8 @@ for hour in hours:
         ax.set_title('Cross-flow Anomaly (m/s) at '+str(round(z[iz2], 2))+'m')
         ax.set_xlabel('x (km)')
         ax.set_yticklabels([''])
+        ax.annotate('D)', (0, 1), xytext=(5,-5),xycoords='axes fraction',
+            textcoords='offset points',ha='left', va='top')
 
         ax = fig.add_subplot(gs[2,0], adjustable = 'box', aspect = 1.)
         W1 = ax.contourf(X, Y, my_w[it,iz3,:,:], cmap = 'bwr', levels = np.linspace(-2., 2., 9), extend = 'both')
@@ -200,6 +199,8 @@ for hour in hours:
         ax.set_title('Vertical Velocity (m/s) at '+str(round(z[iz3], 2))+'m')
         ax.set_xlabel('x (km)')
         ax.set_ylabel('y (km)')
+        ax.annotate('E)', (0, 1), xytext=(5,-5),xycoords='axes fraction',
+            textcoords='offset points',ha='left', va='top')
 
         ax = fig.add_subplot(gs[2,1])
         ax.plot(t, H, 'r', lw = 2, label = 'Sensible HF')
@@ -210,16 +211,17 @@ for hour in hours:
         ax.set_xlabel('Time (mins)')
         ax.set_ylabel('Land-Surface Heat Flux (W m$^{-2}$)')
         lgd=plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.05), prop={'size': 12})
+        ax.annotate('F)', (0, 1), xytext=(5,-5),xycoords='axes fraction',
+            textcoords='offset points',ha='left', va='top')
 
         fig.suptitle('Flow Relative Anomalies at T+'+str(int(times[it]))+'mins', fontsize = 20)
         fig.subplots_adjust(left = 0.0625, right = 0.87, bottom = 0.1, top = 0.9, wspace = 0.31, hspace = 0.31)
-        plt.savefig('FlowRelativeWindAnoms_'+"{0:04d}".format(int(times[it]))+'mins.png', dpi = 100, bbox_extra_artists=(lgd,))
+        plt.savefig('../FRWA/FlowRelativeWindAnoms_'+"{0:04d}".format(int(times[it]))+'mins.png', dpi = 100, bbox_extra_artists=(lgd,))
         plt.close('all')
+    
+    wind_nc.close()
+    bouy_nc.close()
 
-    u.close()
-    v.close()
-    bouy.close()
-    mr.close()
 send_email(message = 'Finished wind_buoyancy_analysis.py', subject = 'xb899100@ARCHER updates', attachments = ['theta_0720mins.png', 'mv_0720mins.png', 'w_0720mins.png','FlowRelativeWindAnoms_0720mins.png'], isAttach = True)
 
 
