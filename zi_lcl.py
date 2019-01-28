@@ -116,9 +116,8 @@ for hour in hours:
         mr_nc.close()
         wind_nc.close()
     
-    print '[' + dt.now().strftime("%H:%M:%S") + '] Open the netCDF for hour ' + hour
     print '[' + dt.now().strftime("%H:%M:%S") + '] Opening zi_'+hour+'.nc'
-    zi_lcl = Dataset('zi_' + hour + '.nc', 'r')
+    zi_lcl = Dataset('../zi_' + hour + '.nc', 'r')
 
     zi0_data = zi_lcl.variables[zi0_key][:]
     zi1_data = zi_lcl.variables[zi1_key][:]
