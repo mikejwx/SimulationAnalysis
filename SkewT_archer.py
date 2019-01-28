@@ -192,7 +192,9 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
                             # If we're still below the LFC, only accumulate some CIN
                             Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
                             Te_level_half = 0.5*(Te[level] + Te[level-1])
-                            CIN += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
+                            if Tp_level_half < Te_level_half:
+                                # Only accumulate CIN if negatively buoyant!
+                                CIN += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
                             #print 'Accumulated some CIN between LCL and Tps[-1]'
                         else:
                             #print 'Lifted parcel is now above the LCL, and above the LFC'
@@ -205,7 +207,9 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
                             # accumulate CIN in the LCL -> LFC layer
                             Tp_level_half = 0.5*(LCL + LFC)
                             Te_level_half = 0.5*(Te[level] + Te[level-1]) # An easy approximation
-                            CIN += g*(Tp_level_half - Te_level_half)*dz0/Te_level_half
+                            if Tp_level_half < Te_level_half:
+                                # Only accumulate CIn if negatively buoyant
+                                CIN += g*(Tp_level_half - Te_level_half)*dz0/Te_level_half
                             
                             # find the distance between the LFC and Tp
                             dz1 = (Tps[-1] - LFC)/getGM(0.5*(LFC + Tps[-1]), p_level_middle)
@@ -228,8 +232,10 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
                         # If we're still below the LFC, only accumulate CIN
                         Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
                         Te_level_half = 0.5*(Te[level] + Te[level-1])
-                        CIN += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
-                        #print 'Accumulated some CIN'
+                        if Tp_level_half < Te_level_half:
+                            # Only accumulate CIN if negatively buoyant
+                            CIN += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
+                            #print 'Accumulated some CIN'
                     else:
                         #print 'Lifted parcel is now above the LFC'
                         # If we're above the LFC, accumulate CIN between Tps[-2] and LFC
@@ -681,7 +687,7 @@ def plotSkewT(temp, t_dew, p, u = np.array([-999]), v = np.array([-999]),
         if CAPE:
             my_q = getQ(t_dew[i]+273.15, np.zeros_like(t_dew[i])+100., p[i])
             my_CAPE, my_CIN, my_Parcel, LCLp, LFCp = getCAPE(temp[i], my_q, p[i], parcel_type = 1)
-            my_title = 'CAPE = ' + str(round(my_CAPE, 0)) + 'Jkg$^{-1}$\n CIN = ' + str(round(my_CIN, 0)) + 'Jkg$^{-1}$'
+            my_title = my_title + '\nCAPE = ' + str(round(my_CAPE, 0)) + 'Jkg$^{-1}$, CIN = ' + str(round(my_CIN, 0)) + 'Jkg$^{-1}$'
             if np.nanmin(my_Parcel) > 0:
                 my_Parcel = np.array([obs - 273.15 for obs in my_Parcel])
             ax.semilogy(skew(my_Parcel, p[i]), p[i], color = 'gray', lw = 2)

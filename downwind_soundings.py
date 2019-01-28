@@ -19,6 +19,8 @@ def get_soundings(it):
     temp_cs_soundings = bilinear_interpolation(X, Y, bouy_nc.variables[temp_key][it,:,:,:]*1., x_cs[i_cs], y_cs[i_cs], kind = 3) # mean within a radius
     pres_cs_soundings = bilinear_interpolation(X, Y, fluxes_nc.variables[pres_key][it,:,:,:]*1., x_cs[i_cs], y_cs[i_cs], kind = 3)
     q_cs_soundings    = bilinear_interpolation(X, Y, bouy_nc.variables[q_key][it,:,:,:]*1., x_cs[i_cs], y_cs[i_cs], kind = 3)
+    u_cs_soundings    = bilinear_interpolation(X, Y, wind_nc.variables[u_key][it,:,:,:]*1., x_cs[i_cs], y_cs[i_cs], kind = 3)
+    v_cs_soundings    = bilinear_interpoaltion(X, Y, wind_nc.variables[v_key][it,:,:,:]*1., x_cs[i_cs], y_cs[i_cs], kind = 3)
     dew_cs_soundings  = getDew(q_cs_soundings, pres_cs_soundings/100.)
 
     # Ensure our soundings directory exists, if not create it
@@ -30,7 +32,7 @@ def get_soundings(it):
         if not os.path.isdir('../Soundings/Radius_'+"{0:02d}".format(int(R[i_cs[i]]/1000.))+'/'):
             os.mkdir('../Soundings/Radius_'+"{0:02d}".format(int(R[i_cs[i]]/1000.))+'/')
         
-        plotSkewT(temp_cs_soundings[:-1,i]-273.15, dew_cs_soundings[:-1,i]-273.15, pres_cs_soundings[:-1,i]/100., my_title = 'T+' + str(int(times[it])) + 'mins, ' + str(int(R[i_cs[i]]/1000.)) + 'km downwind', CAPE = True)
+        plotSkewT(temp_cs_soundings[:-1,i]-273.15, dew_cs_soundings[:-1,i]-273.15, pres_cs_soundings[:-1,i]/100., u, v, my_title = 'T+' + str(int(times[it])) + 'mins, ' + str(int(R[i_cs[i]]/1000.)) + 'km downwind', CAPE = True)
         plt.savefig('../Soundings/Radius_'+"{0:02d}".format(int(R[i_cs[i]]/1000.))+'/AlongWind_sounding_T'+"{0:04d}".format(int(times[it]))+'_R'+"{0:02d}".format(int(R[i_cs[i]]/1000.))+'.png', dpi = 100)
         plt.close('all')
         print "{0:02d}".format(int(R[i_cs[i]]/1000.)) + 'km Sounding Complete.'
@@ -94,11 +96,14 @@ for hour in hours:
     # read in the netCDFs
     bouy_nc   = Dataset('../bouy_' + hour + '.nc', 'r')
     fluxes_nc = Dataset('../fluxes_' + hour + '.nc', 'r')
+    wind_nc   = Dataset('../wind_' + hour + '.nc', 'r')
     # keys
     temp_key  = u'STASH_m01s16i004' # bouy.nc
     pres_key  = u'STASH_m01s00i408' # fluxes.nc
     q_key     = u'STASH_m01s00i010' # bouy.nc
-
+    u_key     = u'STASH_m01s00i002' # wind.nc
+    v_key     = u'STASH_m01s00i003' # wind.nc
+    
     z         = bouy_nc.variables[u'thlev_zsea_theta'][:]*1.
     times     = bouy_nc.variables[u'min10_0'][:]*1.
 
@@ -109,5 +114,6 @@ for hour in hours:
 
     bouy_nc.close()
     fluxes_nc.close()
+    wind_nc.close()
 
 send_email(message = "Finished plotting downwind soundings!", subject = "downwind_soundings.py", attachments = ['../Soundings/Radius_10/AlongWind_sounding_T0720_R10.png', '../Soundings/Radius_20/AlongWind_sounding_T0720_R10.png'], isAttach = True)
