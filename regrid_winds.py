@@ -17,7 +17,7 @@ def main():
     """
 
     # Use the naming convention for the input files
-    hours = ["{0:02d}".format(h) for h in xrange(0, 24, 3)]
+    hours = ["{0:02d}".format(h) for h in xrange(21, 24, 3)]
     u_key = u'STASH_m01s00i002'
     v_key = u'STASH_m01s00i003'
     w_key = u'STASH_m01s00i150'
