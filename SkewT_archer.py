@@ -247,7 +247,9 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
                         # accumulate CIN in the Tps[-2] -> LFC layer
                         Tp_level_half = 0.5*(LFC - Tps[-2])
                         Te_level_half = 0.5*(Te[level] + Te[level-1]) # An easy approximation
-                        CIN += g*(Tp_level_half - Te_level_half)*dz0/Te_level_half
+                        if Tp_level_half < Te_level_half:
+                            # Only accumulate CIN if negatively buoyant
+                            CIN += g*(Tp_level_half - Te_level_half)*dz0/Te_level_half
                         
                         # find the distance between the LFC and Tps[-1]
                         dz1 = (Tps[-1] - LFC)/getGM(0.5*(Tps[-1] + LFC), p_level_half)
