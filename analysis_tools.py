@@ -314,6 +314,12 @@ def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0,
     x_out = 1D array of x-coordinates to be interpolated onto
     y_out = 1D array of y-coordinates to be interpolated onto
     
+    kind = option for how to interpolate
+    option 0: nearest neighbor
+    option 1: inverse distance weighted within radius d to power p
+    option 2: bilinear interpolation
+    option 3: mean within radius d
+    
     OUTPUT:
     z_out = 2D array, output z_out[nz, nr] where nr is the length of x_out
     e.g. nz could be the number of height levels, and nr could be the number of 
