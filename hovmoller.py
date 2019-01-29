@@ -8,7 +8,7 @@ plt.switch_backend('agg')
 from netCDF4 import Dataset
 from datetime import datetime as dt
 from scipy import interpolate, integrate
-from analysis_tools import bilinear_interpolation, find_h, zi
+from analysis_tools import bilinear_interpolation, find_h, zi, get_cs_coords
 import os
 
 # Calculate the points along the cross section.
@@ -64,41 +64,7 @@ R_i = 1000.0*(50.0/np.pi)**0.5 # island radius
 x_c = 100000.0 + R_i
 y_c = 4*R_i
 
-# From this center point, draw line in either direction parallel to wind_dir_0
-# get the coordinates of this line at 100 m resolution.
-h  = 100.0
-dx = (h*np.sin(np.pi*wind_dir_0/180.0))
-dy = (h*np.cos(np.pi*wind_dir_0/180.0))
-
-# start lists of coordinates from the centre point of the island
-
-x_cs = [x_c]
-y_cs = [y_c]
-
-# Populate my list of x and y coordinates along the cross section
-while (x_cs[-1] < np.max(x))*(y_cs[-1] < np.max(y)):
-    x_cs.append(x_cs[-1] + dx)
-    y_cs.append(y_cs[-1] + dy)
-
-x_cs = x_cs[::-1]
-y_cs = y_cs[::-1]
-
-while (x_cs[-1] > np.min(x))*(y_cs[-1] > np.min(y)):
-    x_cs.append(x_cs[-1] - dx)
-    y_cs.append(y_cs[-1] - dy)
-
-# check that all the coordinates along the cross section are within the domain
-i = 0
-while i < len(x_cs):
-    if (x_cs[i] > np.max(x)) or (x_cs[i] < np.min(x)) or (y_cs[i] > np.max(y)) or (y_cs[i] < np.min(y)):
-        del x_cs[i]
-        del y_cs[i]
-    else:
-        i += 1
-
-# store to arrays
-x_cs = np.array(x_cs)
-y_cs = np.array(y_cs)
+x_cs, y_cs = get_cs_coords(x_c, y_c, wind_dir_0, X, Y, h = 100.)
 
 hours = ["{0:02d}".format(h) for h in xrange(0, 24, 3)]
 # use dictionaries to hold the stash codes for the variables
