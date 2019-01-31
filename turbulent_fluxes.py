@@ -137,11 +137,11 @@ lhf_cs /= nt
 tke_cs /= nt
 
 # Plot the Cross Section
-fig = plt.figure(tight_layout = True)
+fig = plt.figure(figsize = (10, 10))
 # Sensible heat flux cross section
 ax = fig.add_subplot(3, 1, 1)
 SHF = ax.contourf(R, z_rho/1000., shf_cs, cmap = 'bwr', levels = np.linspace(-100., 100., 11), extend = 'both')
-fig.colorbar(SHF, ax = ax)
+fig.colorbar(SHF, ax = ax, label = 'SHF (W m$^{-2}$)')
 ax.plot(R, zi_cs/1000., 'k', lw = 2)
 ax.set_xlabel('Distance Downwind (km)')
 ax.set_ylabel('Height (km)')
@@ -151,7 +151,7 @@ ax.set_title('Sensible Heat Flux (W m$^{-2}$)')
 # Latent heat flux cross section
 ax = fig.add_subplot(3, 1, 2)
 LHF = ax.contourf(R, z_rho/1000., Lv*lhf_cs, cmap = 'bwr', levels = np.linspace(-100., 100., 11), extend = 'both')
-fig.colorbar(LHF, ax = ax)
+fig.colorbar(LHF, ax = ax, label = 'LHF (W m$^{-2}$)')
 ax.plot(R, zi_cs/1000., 'k', lw = 2)
 ax.set_xlabel('Distance Downwind (km)')
 ax.set_ylabel('Height (km)')
@@ -161,7 +161,7 @@ ax.set_title('Latent Heat Flux (W m$^{-2}$)')
 # Resolved TKE
 ax = fig.add_subplot(3, 1, 3)
 TKE = ax.contourf(R, z_theta/1000., tke_cs, cmap = 'viridis', levels = np.linspace(0., 5., 11), extend = 'max')
-fig.colorbar(TKE, ax = ax)
+fig.colorbar(TKE, ax = ax, label = 'TKE (m$^{2}$ s$^{-2}$)')
 ax.plot(R, zi_cs/1000., 'k', lw = 2)
 ax.set_xlabel('Distance Downwind (km)')
 ax.set_ylabel('Height (km)')
@@ -169,6 +169,8 @@ ax.set_ylim([0, 5])
 ax.set_title('Turbulence Kinetic Energy (m$^{2}$ s$^{-2}$)')
 
 plt.suptitle('Time-mean values for the period T+550 to T+900 mins', fontsize = 20)
+fig.subplots_adjust(hspace=0.35)
+
 plt.savefig('../turbulence_analysis.png', dpi = 100)
 plt.close('all')
 
