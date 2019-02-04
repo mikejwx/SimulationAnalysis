@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate, integrate
 from netCDF4 import Dataset
+from multiprocessing import Pool
 
 ################################################################################
 #                                                                              #
@@ -328,12 +329,12 @@ def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0,
     interpolation scheme finds the nearest points and uses scipy's bisplrep to 
     do the interpolation.
     """
+    import numpy as np
     # make use of the bi-periodic boundary conditions to not truncate at boundaries
     x_in_p = np.concatenate((x_in-np.max(x_in), x_in, x_in+np.max(x_in)), axis = 1)
     x_in_p = np.concatenate((x_in_p, x_in_p, x_in_p), axis = 0)
     y_in_p = np.concatenate((y_in-np.max(y_in), y_in, y_in+np.max(y_in)), axis = 0)
     y_in_p = np.concatenate((y_in_p, y_in_p, y_in_p), axis = 1)
-        
     # Initialise our output array
     z_out = np.zeros((z_in.shape[0], len(x_out)))
     
@@ -355,7 +356,6 @@ def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0,
             for j in xrange(len(iy)):
                 w += (1./r[iy[j], ix[j]]**p)
                 z_out[:,i] += (1./r[iy[j], ix[j]]**p)*z_in[:,iy[j], ix[j]]
-            
             z_out[:,i] /= w
         elif kind == 2:
             # Find the nearest point
@@ -402,10 +402,10 @@ def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0,
         elif kind == 3:
             iy, ix = np.where(r < d)
             z_out[:,i] = operation(z_in[:,iy,ix], axis = 1)
-        
+    
     return z_out
 
-def get_cs_coords(x_c, y_c, direction, x, y, h = 100.):
+def get_cs_coords(x_c, y_c, direction, x, y, h = 100., isPeriodic = False, max_r = 80000.):
     """
     Uses an input coordinate (x_c, y_c) and a wind direction (direction) to 
     calculate the coordinates of a line that goes through the input coordinate
@@ -419,6 +419,13 @@ def get_cs_coords(x_c, y_c, direction, x, y, h = 100.):
     y: the 2D array of Y coordinates
     h: the resolution at which to take points along the cross section
     """
+    if isPeriodic:
+        # make use of the bi-periodic boundary conditions to not truncate at boundaries
+        x = np.concatenate((x-np.max(x), x, x+np.max(x)), axis = 1)
+        x = np.concatenate((x, x, x), axis = 0)
+        y = np.concatenate((y-np.max(y), y, y+np.max(y)), axis = 0)
+        y = np.concatenate((y, y, y), axis = 1)
+    
     dx = (h*np.sin(np.pi*direction/180.0))
     dy = (h*np.cos(np.pi*direction/180.0))
 
@@ -426,21 +433,27 @@ def get_cs_coords(x_c, y_c, direction, x, y, h = 100.):
     y_cs = [y_c]
 
     # Populate my list of x and y coordinates along the cross section
-    while (x_cs[-1] < np.max(x))*(y_cs[-1] < np.max(y)):
+    while (x_cs[-1] < np.max(x))*(y_cs[-1] < np.max(y))*(round(np.sqrt((x_cs[-1] - x_c)**2 + (y_cs[-1] - y_c)**2),2) < max_r):
+        # checks that the x and y cross section coordinate are within the range
+        # on the right hand side, and top of the domain, also checks that the 
+        # cross section isn't longer than max_r.
         x_cs.append(x_cs[-1] + dx)
         y_cs.append(y_cs[-1] + dy)
 
     x_cs = x_cs[::-1]
     y_cs = y_cs[::-1]
 
-    while (x_cs[-1] > np.min(x))*(y_cs[-1] > np.min(y)):
+    while (x_cs[-1] > np.min(x))*(y_cs[-1] > np.min(y))*(round(np.sqrt((x_cs[-1] - x_c)**2 + (y_cs[-1] - y_c)**2),2) < max_r):
+        # checks that the x and y cross section coordinate are within the range 
+        # of the domain on the left hand side and bottom of the domain, also
+        # also checks that the cross section isn't longer than max_r
         x_cs.append(x_cs[-1] - dx)
         y_cs.append(y_cs[-1] - dy)
 
-    # check that all the coordinates along the cross section are within the domain
+    # double check that all the coordinates along the cross section are within the domain
     i = 0
     while i < len(x_cs):
-        if (x_cs[i] > np.max(x)) or (x_cs[i] < np.min(x)) or (y_cs[i] > np.max(y)) or (y_cs[i] < np.min(y)):
+        if (round(np.sqrt((x_cs[i] - x_c)**2 + (y_cs[i] - y_c)**2),2) > max_r) or (x_cs[i] > np.max(x)) or (x_cs[i] < np.min(x)) or (y_cs[i] > np.max(y)) or (y_cs[i] < np.min(y)):
             del x_cs[i]
             del y_cs[i]
         else:
