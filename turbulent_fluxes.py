@@ -6,11 +6,13 @@ See the Matthews et al. (2007) NCAR/COMET module schematic
 
 import numpy as np
 import matplotlib.pyplot as plt
+#plt.switch_backend('agg')
 from netCDF4 import Dataset
-from analysis_tools import bilinear_interpolation, get_cs_coords
+from analysis_tools import bilinear_interpolation, get_cs_coords, send_email
 import os
 from scipy import interpolate, integrate
 from datetime import datetime as dt
+from multiprocessing import Pool
 
 # Calculate the points along the cross section.
 # Assume that the appropriate representative wind direction is equal to the 
@@ -38,12 +40,12 @@ z_0 = np.array([1.0000004,3.6666676,7.666668,13.000004,19.666672,27.666672,
                 9205.932,14947.828,15802.464,15802.464])
 
 # Calculate the mean wind direction in the boundary layer (lowest ~ 850 m)
-z_1 = np.arange(0., 850.1, 1.)
+z_1 = np.arange(0., 500.1, 1.)
 u_1 = interpolate.interp1d(y = u_0, x = z_0, fill_value = 'extrapolate')(z_1)
 v_1 = interpolate.interp1d(y = v_0, x = z_0, fill_value = 'extrapolate')(z_1)
 
-U_0 = integrate.trapz(y = u_1, x = z_1)/850.
-V_0 = integrate.trapz(y = v_1, x = z_1)/850.
+U_0 = integrate.trapz(y = u_1, x = z_1)/500.
+V_0 = integrate.trapz(y = v_1, x = z_1)/500.
 
 wind_speed_0 = np.sqrt(U_0**2 + V_0**2)
 # Wind speed should be ~ 9.5 m/s
@@ -72,9 +74,6 @@ x_cs, y_cs = get_cs_coords(x_c, y_c, wind_dir_0, X, Y, h = 100.)
 R_i /= 1000.
 R = -np.sign(x_cs - x_c)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)/1000.
 
-# Make use of our netCDF naming convention
-hours = ["{0:02d}".format(h) for h in xrange(0, 24,3)]
-
 print '[' + dt.now().strftime('%H:%M:%S') + '] Defining physical constants and STASH keys'
 # Define some constants
 Lv = 2.501e06
@@ -87,7 +86,23 @@ v_key   = u'STASH_m01s00i003'
 w_key   = u'STASH_m01s00i150'
 zi_key  = u'new boundary layer depth'
 
-for hour in ['09', '12']:#hours:
+def do_work(it):
+    print '[' + dt.now().strftime('%H:%M:%S') + '] time ' + str(int(times[it]))
+    print '[' + dt.now().strftime('%H:%M:%S') + '] Calculating cross sections'
+    shf_1 = bilinear_interpolation(X, Y, fluxes_nc.variables[shf_key][it,:,:,:], x_cs, y_cs, kind = 2)
+    print '[' + dt.now().strftime('%H:%M:%S') + '] Completed cross section for shf'
+    lhf_1 = bilinear_interpolation(X, Y, fluxes_nc.variables[lhf_key][it,:,:,:], x_cs, y_cs, kind = 2)
+    print '[' + dt.now().strftime('%H:%M:%S') + '] Completed cross section for lhf'
+    # calculate the tke data
+    u_p = (wind_nc.variables[u_key][it,:,:,:].transpose() - np.nanmean(wind_nc.variables[u_key][it,:,:,:], axis = (1, 2))).transpose()
+    v_p = (wind_nc.variables[v_key][it,:,:,:].transpose() - np.nanmean(wind_nc.variables[v_key][it,:,:,:], axis = (1, 2))).transpose()
+    w_p = (wind_nc.variables[w_key][it,:,:,:].transpose() - np.nanmean(wind_nc.variables[w_key][it,:,:,:], axis = (1, 2))).transpose()
+    tke_data = 0.5*(u_p**2 + v_p**2 + w_p**2)
+    tke_1 = bilinear_interpolation(X, Y, tke_data, x_cs, y_cs, kind = 2)
+    print '[' + dt.now().strftime('%H:%M:%S') + '] Completed cross section for tke'
+    return shf_1, lhf_1, tke_1
+
+for hour in ['09', '12']:
     print '[' + dt.now().strftime('%H:%M:%S') + '] Starting files for hour ' + hour
     # Read netcdf
     fluxes_nc = Dataset('../fluxes_' + hour + '.nc', 'r')
@@ -111,7 +126,7 @@ for hour in ['09', '12']:#hours:
     Cross sections and horizontal slices within the boundary layer of turbulent 
     heat and moisture fluxes and resolved turbulent kinetic energy.
     """
-    
+    """
     for it in xrange(len(times)):
         print '[' + dt.now().strftime('%H:%M:%S') + '] time ' + str(int(times[it]))
         print '[' + dt.now().strftime('%H:%M:%S') + '] Calculating cross sections'
@@ -126,7 +141,13 @@ for hour in ['09', '12']:#hours:
         tke_data = 0.5*(u_p**2 + v_p**2 + w_p**2)
         tke_cs += bilinear_interpolation(X, Y, tke_data, x_cs, y_cs, kind = 2)
         print '[' + dt.now().strftime('%H:%M:%S') + '] Completed cross section for tke'
-    zi_cs += np.nanmean(bilinear_interpolation(X, Y, zi_nc.variables[zi_key][:], x_cs, y_cs, kind = 2), axis = 0)
+    """
+    p = Pool()
+    crash
+    #shf_cs, lhf_cs, tke_cs += p.map(do_work, range(len(times)))
+    p.close()
+    
+    zi_cs += np.sum(bilinear_interpolation(X, Y, zi_nc.variables[zi_key][:], x_cs, y_cs, kind = 2), axis = 0)
     
     nt += len(times)
     fluxes_nc.close()
@@ -135,12 +156,12 @@ for hour in ['09', '12']:#hours:
 shf_cs /= nt
 lhf_cs /= nt
 tke_cs /= nt
-
+zi_cs  /= nt
 # Plot the Cross Section
 fig = plt.figure(figsize = (10, 10))
 # Sensible heat flux cross section
 ax = fig.add_subplot(3, 1, 1)
-SHF = ax.contourf(R, z_rho/1000., shf_cs, cmap = 'bwr', levels = np.linspace(-100., 100., 11), extend = 'both')
+SHF = ax.contourf(R, z_rho/1000., shf_cs, cmap = 'bwr', levels = [x for x in np.linspace(-20., 20., 11) if x != 0], extend = 'both')
 fig.colorbar(SHF, ax = ax, label = 'SHF (W m$^{-2}$)')
 ax.plot(R, zi_cs/1000., 'k', lw = 2)
 ax.set_xlabel('Distance Downwind (km)')
@@ -150,7 +171,7 @@ ax.set_title('Sensible Heat Flux (W m$^{-2}$)')
 
 # Latent heat flux cross section
 ax = fig.add_subplot(3, 1, 2)
-LHF = ax.contourf(R, z_rho/1000., Lv*lhf_cs, cmap = 'bwr', levels = np.linspace(-100., 100., 11), extend = 'both')
+LHF = ax.contourf(R, z_rho/1000., Lv*lhf_cs, cmap = 'bwr', levels = [x for x in np.linspace(-120., 120., 11) if x != 0], extend = 'both')
 fig.colorbar(LHF, ax = ax, label = 'LHF (W m$^{-2}$)')
 ax.plot(R, zi_cs/1000., 'k', lw = 2)
 ax.set_xlabel('Distance Downwind (km)')
@@ -174,4 +195,5 @@ fig.subplots_adjust(hspace=0.35)
 plt.savefig('../turbulence_analysis.png', dpi = 100)
 plt.close('all')
 
+send_email('turbulence_analysis finished', 'turbulent_fluxes.py', ['../turbulence_analysis.png'])
 
