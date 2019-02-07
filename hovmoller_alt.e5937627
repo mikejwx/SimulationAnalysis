@@ -1,0 +1,20 @@
+/home/y07/y07/cse/anaconda/python2/lib/python2.7/site-packages/numpy/core/_methods.py:26: VisibleDeprecationWarning: using a non-integer number instead of an integer will result in an error in the future
+  return umr_maximum(a, axis, None, out, keepdims)
+Traceback (most recent call last):
+  File "hovmoller_alt.py", line 166, in <module>
+    hov = ax.contourf(R, times, hovmollers[key]*var_factor[key], cmap = var_cmaps[key], levels = np.linspace(cbar_min, cbar_max, 21), extend = 'both')
+  File "/home/y07/y07/cse/anaconda/python2/lib/python2.7/site-packages/matplotlib/__init__.py", line 1812, in inner
+    return func(ax, *args, **kwargs)
+  File "/home/y07/y07/cse/anaconda/python2/lib/python2.7/site-packages/matplotlib/axes/_axes.py", line 5652, in contourf
+    return mcontour.QuadContourSet(self, *args, **kwargs)
+  File "/home/y07/y07/cse/anaconda/python2/lib/python2.7/site-packages/matplotlib/contour.py", line 1424, in __init__
+    ContourSet.__init__(self, ax, *args, **kwargs)
+  File "/home/y07/y07/cse/anaconda/python2/lib/python2.7/site-packages/matplotlib/contour.py", line 863, in __init__
+    self._process_args(*args, **kwargs)
+  File "/home/y07/y07/cse/anaconda/python2/lib/python2.7/site-packages/matplotlib/contour.py", line 1445, in _process_args
+    x, y, z = self._contour_args(args, kwargs)
+  File "/home/y07/y07/cse/anaconda/python2/lib/python2.7/site-packages/matplotlib/contour.py", line 1528, in _contour_args
+    x, y, z = self._check_xyz(args[:3], kwargs)
+  File "/home/y07/y07/cse/anaconda/python2/lib/python2.7/site-packages/matplotlib/contour.py", line 1578, in _check_xyz
+    raise TypeError("Length of y must be number of rows in z.")
+TypeError: Length of y must be number of rows in z.

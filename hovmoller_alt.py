@@ -14,7 +14,7 @@ import os
 # Calculate the points along the cross section.
 # Assume that the appropriate representative wind direction is equal to the 
 # initial conditions for the wind
-
+print 'Starting to find the mean wind direction'
 # Initial conditions taken directly from namelist
 u_0 = np.array([-6.09,-7.02,-7.53,-7.89,-8.15,-8.36,-8.53,-8.68,-8.79,-8.89,
                 -8.97,-9.02,-9.07,-9.1,-9.12,-9.13,-9.14,-9.15,-9.16,-9.16,
@@ -36,18 +36,19 @@ z_0 = np.array([1.0000004,3.6666676,7.666668,13.000004,19.666672,27.666672,
                 9205.932,14947.828,15802.464,15802.464])
 
 # Calculate the mean wind direction in the boundary layer (lowest ~ 850 m)
-z_1 = np.arange(0., 850.1, 1.)
+z_1 = np.arange(0., 500.1, 1.)
 u_1 = interpolate.interp1d(y = u_0, x = z_0, fill_value = 'extrapolate')(z_1)
 v_1 = interpolate.interp1d(y = v_0, x = z_0, fill_value = 'extrapolate')(z_1)
 
-U_0 = integrate.trapz(y = u_1, x = z_1)/850.
-V_0 = integrate.trapz(y = v_1, x = z_1)/850.
+U_0 = integrate.trapz(y = u_1, x = z_1)/500.
+V_0 = integrate.trapz(y = v_1, x = z_1)/500.
 
 wind_speed_0 = np.sqrt(U_0**2 + V_0**2)
 # Wind speed should be ~ 9.5 m/s
 wind_dir_0 = 360.*np.arctan(U_0/V_0)/(2.*np.pi)
 # Wind direction should be ~ 80 deg.
 
+print 'Found the mean wind direction, reading a land sea mask'
 landseamask = Dataset('/work/n02/n02/xb899100/island_masks/lsm50.nc', 'r')
 
 lsm = landseamask.variables['lsm'][0,0,:,:]*1.
@@ -64,6 +65,7 @@ R_i = 1000.0*(50.0/np.pi)**0.5 # island radius
 x_c = 100000.0 + R_i
 y_c = 4*R_i
 
+print 'Finding the coordinates along the cross section'
 # From this center point, draw line in either direction parallel to wind_dir_0
 # get the coordinates of this line at 100 m resolution.
 h  = 100.0
@@ -99,13 +101,13 @@ while i < len(x_cs):
 # store to arrays
 x_cs = np.array(x_cs)
 y_cs = np.array(y_cs)
-
+print 'Found the coordinates along the cross section'
 ################################################################################
 #                                                                              #
 # Actually generate the hovmollers                                             #
 #                                                                              #
 ################################################################################
-
+print 'Defining dictionaries etc.'
 hours = ["{0:02d}".format(h) for h in xrange(0, 24, 3)]
 # use dictionaries to hold the stash codes for the variables
 # zi0 is the naive parcel LNB definition of zi, overly sensitive to surface temperature
@@ -126,6 +128,7 @@ var_units = {'lwp' : r'(g m$^{-2}$)',
              'zi0' : r'(m)',
              'zi1' : r'(m)',
              'lcl' : r'(m)'}
+times = {}
 # use dictionary to hold the hovmollers
 hovmollers = {}
 for key in var_keys.keys():
@@ -136,12 +139,14 @@ R_i /= 1000.
 R = -np.sign(x_cs - x_c)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)/1000.
 
 # create a times array in units of hours
-times = np.arange(10., 1440.1, 10.)/60.
+for key in var_keys.keys():
+    times[key] = np.arange(10., 1440.1, 10.)/60.
 
 ### Do for the liquid water path data ###
-
+print 'Reading the liquid water path netCDF and computing the hovmoller for it'
 lwp_nc = Dataset('../lwp_00.nc', 'r')
-hovmollers['lwp'] = bilinear_interpolation(X, Y, lwp_nc.variables[var_keys['lwp'][::2,:,:], x_cs, y_cs)
+times['lwp'] = lwp_nc.variables['min5_0'][1:]/60.
+hovmollers['lwp'] = bilinear_interpolation(X, Y, lwp_nc.variables[var_keys['lwp']][1:,:,:], x_cs, y_cs, kind = 3)
 lwp_nc.close()
 
 ### Do for the boundary layer depth data ###
@@ -151,17 +156,22 @@ for hour in hours:
     zi_nc = Dataset('../zi_'+hour+'.nc', 'r')
     it_start = 0
     for key in var_keys.keys():
-        if key in zi_nc.variables.keys():
+        if var_keys[key] in zi_nc.variables.keys():
+            print 'interpolating'
             hovmollers[key][18*hours.index(hour):(18*hours.index(hour) + 18),:] = bilinear_interpolation(X, Y, zi_nc.variables[var_keys[key]][it_start:,:,:], x_cs, y_cs, kind = 3)
     zi_nc.close()
 
 for key in var_keys.keys():
     print 'Making Hovmoller for ' + key
-    cbar_min = round(var_factor[key]*(np.nanmean(hovmollers[key]) - np.max(2*np.std(hovmollers[key]), 0.5)), 1)
-    cbar_max = round(var_factor[key]*(np.nanmean(hovmollers[key]) + np.max(2*np.std(hovmollers[key]), 0.5)), 1)
+    if key == 'lwp':
+        cbar_min = 0.0
+        cbar_max = 100.0
+    else:
+        cbar_min = round(var_factor[key]*(np.nanmean(hovmollers[key]) - np.max(2*np.std(hovmollers[key]), 0.5)), 1)
+        cbar_max = round(var_factor[key]*(np.nanmean(hovmollers[key]) + np.max(2*np.std(hovmollers[key]), 0.5)), 1)
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    hov = ax.contourf(R, times, hovmollers[key]*var_factor[key], cmap = var_cmaps[key], levels = np.linspace(cbar_min, cbar_max, 21), extend = 'both')
+    hov = ax.contourf(R, times[key], hovmollers[key]*var_factor[key], cmap = var_cmaps[key], levels = np.linspace(cbar_min, cbar_max, 21), extend = 'both')
     plt.colorbar(hov, ax = ax, label = key + ' ' + var_units[key])
     ax.plot([-R_i, -R_i], [0, 24], 'k--')
     ax.plot([R_i,R_i], [0, 24], 'k--')

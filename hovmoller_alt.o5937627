@@ -1,0 +1,32 @@
+--------------------------------------------------------------------------------
+*** xb899100   Job: 5937627.sdb   started: 04/02/19 20:14:12   host: esPP001 ***
+*** xb899100   Job: 5937627.sdb   started: 04/02/19 20:14:12   host: esPP001 ***
+*** xb899100   Job: 5937627.sdb   started: 04/02/19 20:14:12   host: esPP001 ***
+*** xb899100   Job: 5937627.sdb   started: 04/02/19 20:14:12   host: esPP001 ***
+
+--------------------------------------------------------------------------------
+Starting to find the mean wind direction
+Found the mean wind direction, reading a land sea mask
+Finding the coordinates along the cross section
+Found the coordinates along the cross section
+Defining dictionaries etc.
+Reading the liquid water path netCDF and computing the hovmoller for it
+Reading hour 00
+Reading hour 03
+Reading hour 06
+Reading hour 09
+Reading hour 12
+Reading hour 15
+Reading hour 18
+Reading hour 21
+Making Hovmoller for lwp
+--------------------------------------------------------------------------------
+
+Resources requested: ncpus=1,place=free,walltime=12:00:00
+Resources allocated: cpupercent=97,cput=00:16:23,mem=457768kb,ncpus=1,vmem=993016kb,walltime=00:16:27
+
+*** xb899100   Job: 5937627.sdb   ended: 04/02/19 20:30:39   queue: serial ***
+*** xb899100   Job: 5937627.sdb   ended: 04/02/19 20:30:39   queue: serial ***
+*** xb899100   Job: 5937627.sdb   ended: 04/02/19 20:30:39   queue: serial ***
+*** xb899100   Job: 5937627.sdb   ended: 04/02/19 20:30:39   queue: serial ***
+--------------------------------------------------------------------------------

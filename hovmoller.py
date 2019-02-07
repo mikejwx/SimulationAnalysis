@@ -36,12 +36,12 @@ z_0 = np.array([1.0000004,3.6666676,7.666668,13.000004,19.666672,27.666672,
                 9205.932,14947.828,15802.464,15802.464])
 
 # Calculate the mean wind direction in the boundary layer (lowest ~ 850 m)
-z_1 = np.arange(0., 850.1, 1.)
+z_1 = np.arange(0., 500.1, 1.)
 u_1 = interpolate.interp1d(y = u_0, x = z_0, fill_value = 'extrapolate')(z_1)
 v_1 = interpolate.interp1d(y = v_0, x = z_0, fill_value = 'extrapolate')(z_1)
 
-U_0 = integrate.trapz(y = u_1, x = z_1)/850.
-V_0 = integrate.trapz(y = v_1, x = z_1)/850.
+U_0 = integrate.trapz(y = u_1, x = z_1)/500.
+V_0 = integrate.trapz(y = v_1, x = z_1)/500.
 
 wind_speed_0 = np.sqrt(U_0**2 + V_0**2)
 # Wind speed should be ~ 9.5 m/s
@@ -117,11 +117,15 @@ for iz in izs:
 
     for key in var_keys.keys():
         print 'Making Hovmoller for ' + key + ' at height ' + str(int(z[iz])) + ' m'
-        cbar_min = round(var_factor[key]*(np.nanmean(hovmollers[key]) - np.max(2*np.std(hovmollers[key]), 0.5)), 1)
-        cbar_max = round(var_factor[key]*(np.nanmean(hovmollers[key]) + np.max(2*np.std(hovmollers[key]), 0.5)), 1)
+        cbar_min = round(var_factor[key]*(np.nanmean(hovmollers[key]) - np.max(3*np.std(hovmollers[key]), 0.5)), 1)
+        cbar_max = round(var_factor[key]*(np.nanmean(hovmollers[key]) + np.max(3*np.std(hovmollers[key]), 0.5)), 1)
+        if var_cmaps[key] == 'bwr':
+            my_levels = [xc for xc in np.linspace(cbar_min, cbar_max, 21) if xc != 0]
+        else:
+            my_levels = np.linspace(cbar_min, cbar_max, 21)
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
-        hov = ax.contourf(R, times, hovmollers[key]*var_factor[key], cmap = var_cmaps[key], levels = np.linspace(cbar_min, cbar_max, 21), extend = 'both')
+        hov = ax.contourf(R, times, hovmollers[key]*var_factor[key], cmap = var_cmaps[key], levels = my_levels, extend = 'both')
         plt.colorbar(hov, ax = ax, label = key + ' ' + var_units[key])
         ax.plot([-R_i, -R_i], [0, 24], 'k--')
         ax.plot([R_i,R_i], [0, 24], 'k--')
