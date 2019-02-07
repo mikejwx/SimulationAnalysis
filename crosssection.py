@@ -16,7 +16,7 @@ from SkewT_archer import *
 from analysis_tools import bilinear_interpolation, get_cs_coords
 
 
-testing = False
+testing = True
 
 f = open("output.txt", "w+")
 
