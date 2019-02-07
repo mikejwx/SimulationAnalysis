@@ -240,6 +240,52 @@ def get_CTZ(mc, z, threshold = 1e-16):
     
     return Z_top
 
+def get_theta_w(temperature, q, pressure, t_units = 'K', q_units = 'kg/kg', p_units = 'hPa'):
+    """
+    Calculates the wet bulb potential temperature.
+    First, the parcel must be lifted dry adiabatically to the LCL, then the 
+    parcel must be brought pseudoadiabatically to the reference pressure 
+    (1000 hPa) to arrive at the wet bulb potential temperature.
+    
+    If the saturated wet-bulb potential temperature is sought, replace q with 
+    getQ(temperature, RH, pressure) from SkewT_archer and use RH = 100%.
+    """
+    # Do unit conversions
+    if t_units == 'C':
+        # convert to K
+        temperature += 273.15
+    
+    if q_units == 'g/kg':
+        # convert to kg/kg
+        q /= 1000.
+    
+    if p_units == 'Pa':
+        # Convert to hPa
+        pressure /= 100.
+    
+    from SkewT_archer import getDew, cpd, Rd, p0, g, getGM
+    # First, find the LCL temperature (requires dew point from getDew)
+    dewpoint = getDew(q*1., pressure*1., q_units = 'kg/kg', p_units = 'hPa')
+    A = 1./(dewpoint - 56.)
+    B = np.log(temperature/dewpoint)/800.
+    LCL_temperature  = (1./(A + B)) + 56.
+    
+    # Second, find the LCL pressure by inverting Poisson's relation
+    LCL_pressure = pressure/((temperature/LCL_temperature)**(cpd/Rd))
+    
+    # Third, bring the parcel pseudoadiabatically to the reference pressure
+    # using getGM, an integration with height and an estimate for dz.
+    
+    # cheap and nasty one step integration
+    dp = p0 - LCL_pressure
+
+    rho = 0.5*(LCL_pressure + p0)*100./(Rd*LCL_temperature)
+    dz = - dp*100./(rho*g)
+    
+    theta_w = LCL_temperature + getGM(LCL_temperature*1., 0.5*(LCL_pressure+p0), t_units = 'K', p_units = 'hPa')*dz
+    
+    return theta_w
+
 ################################################################################
 #                                                                              #
 # Regridding, interpolation and spatial smoothing routines                     #
@@ -346,7 +392,7 @@ def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0,
         if kind == 0:
             # Nearest neighbor approach
             iy, ix = np.where(r == np.min(r))
-            z_out[:,i] = z_in[:,iy[0],ix[0]]
+            z_out[:,i] = z_in[:,iy[0]%z_in.shape[1],ix[0]%z_in.shape[2]]
         elif kind == 1:
             # idw approach
             # Use all points within 'd' m of x_out, y_out for weighted mean
@@ -355,7 +401,7 @@ def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0,
             
             for j in xrange(len(iy)):
                 w += (1./r[iy[j], ix[j]]**p)
-                z_out[:,i] += (1./r[iy[j], ix[j]]**p)*z_in[:,iy[j], ix[j]]
+                z_out[:,i] += (1./r[iy[j], ix[j]]**p)*z_in[:,iy[j]%z_in.shape[1], ix[j]%z_in.shape[2]]
             z_out[:,i] /= w
         elif kind == 2:
             # Find the nearest point
@@ -401,7 +447,7 @@ def bilinear_interpolation(x_in, y_in, z_in, x_out, y_out, kind = 0, d = 2000.0,
                     z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
         elif kind == 3:
             iy, ix = np.where(r < d)
-            z_out[:,i] = operation(z_in[:,iy,ix], axis = 1)
+            z_out[:,i] = operation(z_in[:,iy%z_in.shape[1],ix%z_in.shape[2]], axis = 1)
     
     return z_out
 

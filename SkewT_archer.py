@@ -3,7 +3,31 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from scipy import interpolate
 
-def getQ(TIN, RHIN, PIN):
+def getThetaE(theta, temperature, pressure, t_units = 'K', p_units = 'hPa'):
+    """
+    Calculates the simplified version of equivalent potential temperature from 
+    Holton and Hakim (5th edition) An Introduction to Dynamic Meteorology.
+    ----------------------------------------------------------------------------
+    theta_e ~ theta*exp(Lv*qs/(cp*T))
+    ----------------------------------------------------------------------------
+    """
+    # do unit conversions if neccessary
+    if t_units == 'C':
+        temperature += 273.15
+    elif t_units == 'F':
+        temperature = (temperature - 32.)*1.8 + 273.15
+    
+    if p_units == 'Pa':
+        pressure /= 100.
+    
+    # calculate the saturated specific humidity from temperature and pressure
+    qs = getQ(temperature*1., [100.], pressure*1.)
+    
+    # calculate the equivalent potential temperature and return it
+    theta_e = theta*np.exp(Lv*qs/(cpd*temperature))
+    return theta_e
+
+def getQ(TIN, RHIN, PIN, t_units = 'C', p_units = 'hPa'):
     """
     Uses equations from Bolton (1980) to calculate the specific humidity from the temperature (TIN), 
     the relative humidity (RHIN), and the pressure (PIN).
@@ -22,14 +46,15 @@ def getQ(TIN, RHIN, PIN):
         RHIN = np.array([RHIN])
     if (type(PIN) == int) or (type(PIN) in [float, np.float16, np.float32, np.float64]):
         PIN = np.array([PIN])
+    
     #convert to degC
-    if np.nanmax(TIN) > 100.:
-        TIN = TIN[:] - 273.15
-    #convert to pa
-    if np.nanmax(PIN) < 10000.:
-        p = PIN[:]*100.
-    else:
-        p = PIN[:]*1.
+    if t_units == 'K':
+        TIN -= 273.15
+    #convert to Pa
+    if p_units == 'Pa':
+        p = PIN
+    elif p_units == 'hPa':
+        p = PIN*100.
     
     # Step one - calculate saturation vapour pressure (es)    
     # Define some coefficients
@@ -56,7 +81,7 @@ def getQ(TIN, RHIN, PIN):
     
     return q
 
-def getGM(TIN, PIN):
+def getGM(TIN, PIN, t_units = 'C', p_units = 'hPa'):
     """
     Calculate the moist adiabatic lapse rate, GM, for a given temperature and pressure.
     Assumes that the air is saturated at the given temperature and that all moisture is
@@ -65,13 +90,16 @@ def getGM(TIN, PIN):
     PIN: Input pressure (hPa)
     """
     # Ensure the correct units
-    if (TIN-273.15) < 0:
-        T_C = TIN*1.
-    else:
-        T_C = TIN - 273.15
+    if t_units == 'K':
+        # Convert to C
+        TIN -= 273.15
+    
+    if p_units == 'Pa':
+        # Convert to hPa
+        PIN /= 100.
     
     # Calculate the specific humidity at saturation
-    QIN  = getQ(T_C, 100., PIN)[0]
+    QIN  = getQ(TIN*1., 100., PIN*1., t_units = 'C', p_units = 'hPa')[0]
     
     # Calculate the moist adiabatic lapse rate
     A = (Lv*QIN)/(Rd*TIN)
@@ -80,7 +108,7 @@ def getGM(TIN, PIN):
     
     return G_m
 
-def getDew(QIN, PIN1):
+def getDew(QIN, PIN1, q_units = 'kg/kg', p_units = 'hPa'):
     """
     Convert the specific humidity into a dew point temperature given a pressure.
     Convert the specific humidity to mixing ratio, then mixing ratio to vapour pressure,
@@ -91,7 +119,13 @@ def getDew(QIN, PIN1):
     """
     
     # Convert pressure from hPa to Pa
-    PIN = PIN1*100.
+    if p_units == 'hPa':
+        PIN = PIN1*100.
+    elif p_units == 'Pa':
+        PIN = PIN1*1.
+    
+    if q_units == 'g/kg':
+        QIN /= 1000.
     
     # Convert the specific humidity to a mixing ratio
     W = QIN/(1. - QIN)
@@ -130,7 +164,7 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
         # surface based parcel
         Tp = Te[0]
         Q_0  = QIN[0] # get the surface specific humidity
-        T_d0 = getDew(Q_0, PIN[0]) # get the surface dew point
+        T_d0 = getDew(Q_0*1., PIN[0]) # get the surface dew point
     elif parcel_type == 1:
         # mean over lowest ~ 500 m
         rho = PIN[0]/(Rd*Te[0])
@@ -138,7 +172,7 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
         p_dummy = PIN[0] - np.arange(0., dp500+0.1)
         Tp = PTtoTemp(np.mean(interpolate.interp1d(PIN, temp2theta(Te, PIN))(p_dummy)), PIN[0])
         Q_0  = np.mean(interpolate.interp1d(PIN, QIN)(p_dummy)) # get the surface specific humidity
-        T_d0 = getDew(Q_0, PIN[0]) # get the surface dew point
+        T_d0 = getDew(Q_0*1., PIN[0]) # get the surface dew point
     else:
         print 'WARNING: Unknown parcel type!!!'
     
@@ -148,7 +182,7 @@ def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
     LCL  = (1./(A + B)) + 56.
     
     ## Find the LFC ##
-    LFC  = getLFC(Tp, Te, QIN, PIN) # parcel temperature at level of free convection
+    LFC  = getLFC(Tp*1., Te*1., QIN*1., PIN*1.) # parcel temperature at level of free convection
     
     ## Initialise the parcel ascent list and the CAPE to accumulate ##
     Tps  = [Tp] # parcel temperature
