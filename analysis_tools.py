@@ -62,6 +62,50 @@ def zi(theta_v, z):
             #z_i[j,i] = z[k]
     return z_i
 
+def getML_mean(var, z, zi, axis = 0):
+    """
+    Find and return the mean of 'var' in height over the mixed layer 'zi'.
+    ----------------------------------------------------------------------------
+    INPUT:
+    var  = variable that is some function of height along the given axis
+    var  = f([t], z, y, x)
+    z    = height observations
+    zi   = height of the mixed layer determined from elsewhere
+    zi   = f([t], y, x)
+    axis = the axis in var that contains the height variation
+    
+    i.e. if var = f(t, z, y, x) axis should be provided as axis = 1
+    N.B. if just a single profile, this should be able to pick out the correct 
+    ML mean value
+    OUTPUT:
+    var_ML = the mean of the given variable over the mixed layer depth, zi
+    ----------------------------------------------------------------------------
+    """
+    from scipy import interpolate, integrate
+    if len(var.shape) <= 2:
+        # This is a single profile, either f(t, z) or f(z)
+        var_f  = interpolate.interp1d(z, var, axis = axis)
+        my_z   = np.arange(np.min(z), zi)
+        var_ML = integrate.trapz(var_f(my_z), my_z, axis = axis)/zi
+    elif len(var.shape) == 3:
+        # This is f(z, y, x)
+        var_ML = np.zeros_like(zi)
+        for j in xrange(var.shape[1]):
+            for i in xrange(var.shape[2]):
+                var_f       = interpolate.interp1d(z, var[:,j,i])
+                my_z        = np.arange(np.min(z), zi[j,i])
+                var_ML[j,i] = integrate.trapz(var_f(my_z), my_z)/zi[j,i]
+    elif len(var.shape) == 4:
+        # This is f(t, z, y, x)
+        var_ML = np.zeros_like(zi)
+        for it in xrange(var.shape[0]):
+            for j in xrange(var.shape[2]):
+                for i in xrange(var.shape[3]):
+                    var_f          = interpolate.interp1d(z, var[it,:,j,i])
+                    my_z           = np.arange(np.min(z), zi[it,j,i])
+                    var_ML[it,j,i] = integrate.trapz(var_f(my_z), my_z)/zi[it,j,i]
+    return var_ML
+
 def lcl(temp, q, pres, z):
     """
     lcl calculates the surface-based lifting condensation level as a function of
@@ -78,24 +122,20 @@ def lcl(temp, q, pres, z):
     Output:
     lcl  = the lifting condensation level (m)
     """
-    # Define some constants
+    # Import some constants
+    from SkewT_archer import Lv, Rv, Rd, EPS, cpd
     T0 = 273.15 # freezing point of water
-    Lv = 2.501e6 # Latent heat of vapourisation
-    Rv = 461. # Gas constant for water vapour
-    e0 = 611.2 # vapour pressure of water vapour at T0
-    Rd = 287.05
-    E = Rd/Rv
-    cp = 1005.
+    e0 = 611.2  # vapour pressure of water vapour at T0
     
     # calculate the dew point temperature
-    e = q*pres[0,:,:]/(E - q*E + q)
+    e = q*pres[0,:,:]/(EPS - q*EPS + q)
     dewpoint = (1./T0 - (Rv/Lv)*np.log(e/e0))**(-1.)
     
     term_A = 1./(dewpoint - 56)
     term_B = np.log(temp/dewpoint)/800.
     T_LCL = 1/(term_A + term_B) + 56
     
-    p_LCL = pres[0,:,:]*(T_LCL/temp)**(cp/Rd)
+    p_LCL = pres[0,:,:]*(T_LCL/temp)**(cpd/Rd)
     z_LCL = np.zeros_like(p_LCL)
     for j in xrange(pres.shape[1]):
         for i in xrange(pres.shape[2]):
@@ -240,7 +280,7 @@ def get_CTZ(mc, z, threshold = 1e-16):
     
     return Z_top
 
-def get_theta_w(temperature, q, pressure, t_units = 'K', q_units = 'kg/kg', p_units = 'hPa'):
+def get_theta_w(temperature, q, pressure, t_units = 'K', q_units = 'kg/kg', p_units = 'hPa', ndp = 20):
     """
     Calculates the wet bulb potential temperature.
     First, the parcel must be lifted dry adiabatically to the LCL, then the 
@@ -271,18 +311,31 @@ def get_theta_w(temperature, q, pressure, t_units = 'K', q_units = 'kg/kg', p_un
     LCL_temperature  = (1./(A + B)) + 56.
     
     # Second, find the LCL pressure by inverting Poisson's relation
-    LCL_pressure = pressure/((temperature/LCL_temperature)**(cpd/Rd))
+    LCL_pressure = pressure/((temperature/LCL_temperature)**(cpd/Rd)) # hPa
     
     # Third, bring the parcel pseudoadiabatically to the reference pressure
     # using getGM, an integration with height and an estimate for dz.
-    
+    """
     # cheap and nasty one step integration
+    
     dp = p0 - LCL_pressure
 
     rho = 0.5*(LCL_pressure + p0)*100./(Rd*LCL_temperature)
     dz = - dp*100./(rho*g)
     
     theta_w = LCL_temperature + getGM(LCL_temperature*1., 0.5*(LCL_pressure+p0), t_units = 'K', p_units = 'hPa')*dz
+    """
+    
+    # multi-step integration
+    dp = (p0 - LCL_pressure)/ndp
+    p1 = LCL_pressure*1.
+    theta_w = LCL_temperature*1.
+    for i in xrange(ndp):
+        # integrate down until we are at p0
+        rho = (p1 + dp/2.)*100./(Rd*theta_w)
+        dz = - dp*100./(rho*g)
+        theta_w += getGM(theta_w*1., (p1 + dp/2.), t_units = 'K', p_units = 'hPa')*dz
+        p1 += dp
     
     return theta_w
 
@@ -820,8 +873,9 @@ def transform_winds(u, v):
     s = np.zeros_like(u) # along flow
     n = np.zeros_like(u) # cross flow
     
+    # For every time step
     for it in xrange(u.shape[0]):
-        
+        # For every height
         for k in xrange(u.shape[1]):
             u_slice = u[it,k,:,:]
             v_slice = v[it,k,:,:]
@@ -835,6 +889,7 @@ def transform_winds(u, v):
             s[it,k,:,:] = wind_speed*np.cos(rotated_dir*np.pi/180.) # along-wind
             
     return s, n
+
 ################################################################################
 #                                                                              #
 # Other functions                                                              #
