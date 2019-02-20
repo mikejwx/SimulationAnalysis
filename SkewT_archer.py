@@ -76,35 +76,46 @@ def getQ(TIN, RHIN, PIN, t_units = 'C', p_units = 'hPa'):
     # Step three - calculate the specific humidity
     q = ev*EPS/(p-ev*(1-EPS)) # kg kg-1
     
-    i = np.where(TIN < -80.)
-    q[i] = 0.
+    q = np.where((TIN < -80.), 0., q)
     
     return q
 
-def getGM(TIN, PIN, t_units = 'C', p_units = 'hPa'):
+def getGM(TIN, PIN, t_units = 'K', p_units = 'hPa'):
     """
     Calculate the moist adiabatic lapse rate, GM, for a given temperature and pressure.
     Assumes that the air is saturated at the given temperature and that all moisture is
     condensed and removed immediately from the parcel.
-    TIN: Input temperature (deg C)
+    
+    Equation from Holton and Hakim, An Introduction to Dynamic Meteorology 5th 
+    edition. Pages 504-505.
+    
+    TIN: Input temperature (K)
     PIN: Input pressure (hPa)
     """
-    # Ensure the correct units
-    if t_units == 'K':
-        # Convert to C
-        TIN -= 273.15
+    # Convert to Kelvin
+    if t_units == 'C':
+        # Convert from C to K
+        TIN += 273.15
+    elif t_units == 'K':
+        # Do nothing
+        TIN *= 1.
     
+    # Convert to hPa
     if p_units == 'Pa':
-        # Convert to hPa
+        # Convert from Pa to hPa
         PIN /= 100.
+    elif p_units == 'hPa':
+        # Do nothing
+        PIN *= 1.
     
     # Calculate the specific humidity at saturation
-    QIN  = getQ(TIN*1., 100., PIN*1., t_units = 'C', p_units = 'hPa')[0]
-    
+    #QIN  = getQ(TIN*1., 100., PIN*1., t_units = 'K', p_units = 'hPa')[0]
+    es = e_0*np.exp((Lv/Rv)*((1./T_0) - (1./TIN)))
+    QIN = EPS*es/(PIN*100.)
     # Calculate the moist adiabatic lapse rate
-    A = (Lv*QIN)/(Rd*TIN)
-    B = (EPS*QIN*Lv**2)/(Rd*TIN**2)
-    G_m = g*(1 + A)/(cpd + B)
+    A = Lv*QIN/(Rd*TIN)
+    B = EPS*QIN*Lv**2./(cpd*Rd*TIN**2.)
+    G_m = (g/cpd)*(1. + A)/(1. + B)
     
     return G_m
 
@@ -129,17 +140,106 @@ def getDew(QIN, PIN1, q_units = 'kg/kg', p_units = 'hPa'):
     
     # Convert the specific humidity to a mixing ratio
     W = QIN/(1. - QIN)
-    es0 = 611.2
     
     # Convert the mixing ratio to a vapour pressure
     e = W*PIN/(EPS + W)
     
     # Calculate the dew point temperature from the vapour pressure
-    Td = ((1./273.15) - (Rv/Lv)*np.log(e/es0))**(-1.)
+    Td = ((1./273.15) - (Rv/Lv)*np.log(e/e_0))**(-1.)
     
     return Td
 
-def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
+def getCAPE(temperature, q, pressure, parcel_type = 0, t_units = 'K', q_units = 'kg/kg', p_units = 'hPa'):
+    """
+    Calculate a parcel ascent, first following the dry adiabat until the 
+    Lifiting Condensation Level (LCL), then following a pseudo-adiabat through 
+    to 100 hPa or the highest input pressure level.
+    
+    Once a parcel ascent has been computed, the Convective Available Potential
+    Energy (CAPE) is calculated between the lowest level of free convection 
+    (LFC) and the highest level of neutral buoyancy (LNB). Similarly, Convective 
+    Inhibition (CIN) is calculated between the LCL and the lowest LFC.
+    ----------------------------------------------------------------------------
+    INPUT:
+    temperature = An environmental temperature profile in Kelvin, ie. f(z)
+    q           = An environmental specific humidity profile in kg/kg, ie. f(z)
+    pressure    = An environmental pressure profile in hPa, i.e. f(z)
+    
+    parcel_type = type of parcel used to compute ascent, either 0 = surface, or 
+                  1 = mean of lowest 500 m ~ 50 hPa
+    x_units     = the units of the provided temperature, q, or pressure
+    """
+    # First convert everything to the correct units
+    if t_units == 'C':
+        temperature += 273.15
+    
+    if q_units == 'g/kg':
+        q /= 1000.
+    
+    if p_units == 'Pa':
+        pressure /= 100.
+    
+    # Next, calculate the parcel
+    from scipy import interpolate, integrate
+    if parcel_type == 0:
+        # Surface Parcel
+        T0 = temperature[0]
+        Q0 = q[0]
+        P0 = pressure[0]
+    elif parcel_type == 1:
+        # Lowest ~500 m
+        DP = g*500./100. # hPa change in pressure between the surface and 500 m for rho = 1 kg/m3
+        
+        theta_fun = interpolate.interp1d(x = pressure, y = temp2theta(temperature, pressure), fill_value = 'extrapolate')
+        q_fun     = interpolate.interp1d(x = pressure, y = q, fill_value = 'extrapolate')
+        p_layer = pressure[0] - np.arange(DP)
+        T0 = PTtoTemp(integrate.trapz(x = p_layer, y = theta_fun(p_layer)*p_layer)/integrate.trapz(p_layer, p_layer), pressure[0])
+        Q0 = integrate.trapz(x = p_layer, y = q_fun(p_layer)*p_layer)/integrate.trapz(p_layer, p_layer)
+        P0 = pressure[0]
+
+    # Then start parcel ascent:
+    # Need to know the LCL_temperature and pressure
+    Td0 = getDew(Q0, P0, q_units = 'kg/kg', p_units = 'hPa')
+    # Use Bolton (1980)
+    A = 1./(Td0 - 56.)
+    B = np.log(T0/Td0)/800.
+    LCL_temperature  = (1./(A + B)) + 56.
+    LCL_pressure     = pressure[0]*(LCL_temperature/temperature[0])**(cpd/Rd)
+
+    n_steps = 1000
+    T_parcel = np.zeros(n_steps)
+    P_parcel = np.zeros(n_steps)
+    T_parcel[0] = T0
+    P_parcel[0] = P0
+    dp = (np.min([pressure[-1], 100.]) - pressure[0])/n_steps
+    for i in xrange(1, n_steps):
+        # do 1000 step integration between the surface and highest (or 100. hPa) pressure
+        rho = 100.*P_parcel[i-1]/(Rd*T_parcel[i-1]) # Equation of state
+        dz = - 100.*dp/(rho*g) # Hydrostatic balance
+        if P_parcel[i-1] > LCL_pressure:
+            # Parcel ascends dry adiabatically to the LCL
+            T_parcel[i] = T_parcel[i-1] - g*dz/cpd # Dry Adiabatic Lapse Rate
+            P_parcel[i] = P_parcel[i-1] + dp # Pressure at new level
+        elif P_parcel[i-1] <= LCL_pressure:
+            # Parcel ascends pseudoadiabatically through the rest of the atmosphere
+            T_parcel[i] = T_parcel[i-1] - getGM(T_parcel[i-1]*1., P_parcel[i-1]*1., t_units = 'K', p_units = 'hPa')*dz # Pseudoadiabatic lapse rate
+            P_parcel[i] = P_parcel[i-1] + dp # pressure at new level
+
+    # Find LFC, LNB, Calculate CAPE and CIN
+    T_environment = interpolate.interp1d(x = pressure, y = temperature, fill_value = 'extrapolate')(P_parcel)
+    rho = 100.*P_parcel/(Rd*T_parcel)
+    dz = -100.*dp/(rho*g)
+    # CAPE above LCL, above lowest LFC, below highest LNB
+    CAPE = np.sum(np.where(((T_parcel - T_environment) > 0.)*(P_parcel < LCL_pressure), g*(T_parcel - T_environment)*dz/T_environment, 0))
+
+    # lowest LFC, the lowest level above or equal to the LCL that is positively buoyant
+    LFC_pressure = np.max(np.where(((T_parcel - T_environment) > 0.)*(P_parcel <= LCL_pressure), P_parcel, 0.))
+    # CIN above LCL, below lowest LFC
+    CIN = np.sum(np.where(((T_parcel - T_environment) < 0.)*(P_parcel < LCL_pressure)*(P_parcel > LFC_pressure), g*(T_parcel - T_environment)*dz/T_environment, 0))
+
+    return CAPE, CIN, T_parcel, LCL_pressure, LFC_pressure
+
+def getCAPEv1(TIN1, QIN, PIN, parcel_type = 0):
     """
     Function to calculate surface based CAPE.
     Tp = User provided parcel (e.g. surface based virtual temperature)
@@ -470,6 +570,8 @@ q_p = np.arange(1050., 500., -5.) # pressure levels on which to plot lines of co
 target_q = np.array([0.1, 1, 2, 4, 7, 10, 15, 20, 30])*1e-3 # constant specific humidities to plot lines
 T0 = np.arange(-40, 300., 20.) # p0 level temperatures to calculate dry adiabats
 T1 = np.arange(-40., 90.1, 5)
+e_0 = 611.2 # saturation vapour pressure for T_0 = 273.15
+T_0 = 273.15
 
 def dry_adiabats():
     """
