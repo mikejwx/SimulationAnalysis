@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
-from analysis_tools import regrid
+from analysis_tools import regrid, transform_winds
 from datetime import datetime as dt
 
-def main():
+def main(path):
     """
     Regrid the wind netCDF from staggered horizontal grid points and rho 
     vertical levels onto theta grid points and theta levels.
@@ -17,11 +17,13 @@ def main():
     """
 
     # Use the naming convention for the input files
-    hours = ["{0:02d}".format(h) for h in xrange(21, 24, 3)]
+    hours = ["{0:02d}".format(h) for h in xrange(0, 24, 3)]
     u_key = u'STASH_m01s00i002'
     v_key = u'STASH_m01s00i003'
     w_key = u'STASH_m01s00i150'
-
+    s_key = u'Flow-Parallel'
+    n_key = u'Flow-Perpendicular'
+    
     for hour in hours:
         ########################################################################
         #                                                                      #
@@ -29,15 +31,15 @@ def main():
         #                                                                      #
         ########################################################################
         
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Reading winds_' + hour + '.nc'
-        u_nc = Dataset('../u_' + hour + '.nc', 'r')
-        v_nc = Dataset('../v_' + hour + '.nc', 'r')
+        print '[' + dt.now().strftime("%H:%M:%S") + '] Reading winds for ' + hour
+        u_nc = Dataset(path + 'u_' + hour + '.nc', 'r')
+        v_nc = Dataset(path + 'v_' + hour + '.nc', 'r')
         # Define a target coordinate system
-        w_nc = Dataset('../bouy_' + hour + '.nc', 'r')
+        w_nc = Dataset(path + 'bouy_' + hour + '.nc', 'r')
         
         print '[' + dt.now().strftime("%H:%M:%S") + '] Creating new winds netCDF'
         # Create a new netcdf for the regridded wind components
-        winds_nc = Dataset('../wind_' + hour + '.nc', 'w')
+        winds_nc = Dataset(path + 'wind_' + hour + '.nc', 'w')
         
         print '[' + dt.now().strftime("%H:%M:%S") + '] Creating dimensions for the netCDF'
         # Create dimensions for that netcdf
@@ -56,6 +58,8 @@ def main():
         u_var   = winds_nc.createVariable(u_key, np.float64, ('min10_0', 'thlev_zsea_theta', 'latitude_t', 'longitude_t'))
         v_var   = winds_nc.createVariable(v_key, np.float64, ('min10_0', 'thlev_zsea_theta', 'latitude_t', 'longitude_t'))
         w_var   = winds_nc.createVariable(w_key, np.float64, ('min10_0', 'thlev_zsea_theta', 'latitude_t', 'longitude_t'))
+        s_var   = winds_nc.createVariable(s_key, np.float64, ('min10_0', 'thlev_zsea_theta', 'latitude_t', 'longitude_t'))
+        n_var   = winds_nc.createVariable(n_key, np.float64, ('min10_0', 'thlev_zsea_theta', 'latitude_t', 'longitude_t'))
         
         print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the dimension variables'
         # populate the dimension variables
@@ -66,13 +70,18 @@ def main():
         
         print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the wind variables'
         print '[' + dt.now().strftime("%H:%M:%S") + '] Regridding u-winds'
-        u_var[:] = regrid(w_nc, u_nc, u_key)[:]
+        u_regrid = regrid(w_nc, u_nc, u_key)[:]
+        u_var[:] = u_regrid[:]*1.
         
         print '[' + dt.now().strftime("%H:%M:%S") + '] Regridding v-winds'
-        v_var[:] = regrid(w_nc, v_nc, v_key)[:]
+        v_regrid = regrid(w_nc, v_nc, v_key)[:]
+        v_var[:] = v_regrid[:]*1.
         
         print '[' + dt.now().strftime("%H:%M:%S") + '] Copying over w-winds'
         w_var[:] = w_nc.variables[w_key][:]
+        
+        print '[' + dt.now().strftime("%H:%M:%S") + '] Transforming the winds'
+        s_var[:], n_var[:] = transform_winds(u_regrid, v_regrid)
         
         print '[' + dt.now().strftime("%H:%M:%S") + '] Closing the new winds_nc'
         winds_nc.close()
@@ -84,4 +93,11 @@ def main():
         
         print '[' + dt.now().strftime("%H:%M:%S") + '] Regridding hour ' + hour + ' complete.'
 
-main()
+paths = ['/work/n02/n02/xb899100/cylc-run/u-bd527/share/data/history/',
+         '/work/n02/n02/xb899100/cylc-run/u-bg023/share/data/history/',
+         '/work/n02/n02/xb899100/cylc-run/u-bg113/share/data/history/']
+
+for path in paths:
+    print path
+    main(path)
+
