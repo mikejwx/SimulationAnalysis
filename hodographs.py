@@ -2,7 +2,115 @@ import numpy as np
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 from scipy import interpolate
-from analysis_tools import RDP, toComponents, fromComponents
+
+def horizontalMean(data):
+    """
+    Function to compute and return the horizontal mean of a given array.
+    Will check if the array is 3- or 4- dimensional. If 3D, then assume that 
+    array = f(z, y, x), and if 4D, assume array = f(t, z, y, x).
+    """
+    
+    if len(data.shape) == 3:
+        h_mean = np.zeros(data.shape[0])
+        for k in xrange(data.shape[0]):
+            h_mean[k] = np.mean(data[k,:,:])
+    elif len(data.shape) == 4:
+        h_mean = np.zeros((data.shape[0], data.shape[1]))
+        for t in xrange(data.shape[0]):
+            for k in xrange(data.shape[1]):
+                h_mean[t, k] = np.mean(data[t, k, :, :])
+    else:
+        raise Exception("Unrecognised array shape in horizontalMean")
+    
+    return h_mean
+
+def RDP(x, y, e):
+    """
+    Algorithm to choose the minimum number of points that retains the shape of 
+    y with maximum error, "error". Returns the values of y, and the coordinates 
+    x for those values.
+    """
+    # find the end of the data
+    end = len(x)
+    index0 = 0
+    index1 = end -1
+    # The first point of our data is the same as the first point in our simplification
+    x_simplified = [x[index0]]
+    y_simplified = [y[index0]]
+    #plt.plot(x, y, 'k-', marker = 'o', lw = 2)
+    #plt.show()
+    while (index0 < (end - 1)):
+        #first estimate is a straight line between the first and last point of the data
+        y_est = (y[index1] - y[index0])*(x - x[index0])/(x[index1] - x[index0]) + y[index0]
+        d = np.abs(y - y_est)[index0:index1]
+        dmax = np.max(d)
+        while (dmax > e)*(index0 < index1):
+            #plt.plot(x, y, 'k-', marker = 'o', lw = 2)
+            #plt.plot(x[index0:(index1+1)], y_est[index0:(index1+1)], 'b--')
+            index1 = index0 + np.where(d == dmax)[0][0] # find the index of distance_max > error
+            #plt.plot(x[index1], y[index1], 'ro')
+            #plt.show()
+            y_est = (y[index1] - y[index0])*(x - x[index0])/(x[index1] - x[index0]) + y[index0] # draw straight line to that point
+            d = np.abs(y[index0:index1] - y_est[index0:index1]) # recalculate the differences
+            dmax = np.max(d) # find the maximum differences
+        x_simplified.append(x[index1])
+        y_simplified.append(y[index1])
+        index0 = index1
+        index1 = end - 1
+    return np.array(x_simplified), np.array(y_simplified)
+
+def toComponents(speed, direction):
+    "takes the wind speed and wind direction and breaks the wind speed into"
+    "u- and v- components to be returned."
+    "speed = wind speed"
+    "direction = wind direction"
+    u = - speed*np.sin(direction*np.pi/180)
+    v = - speed*np.cos(direction*np.pi/180)
+    
+    return u, v
+
+def fromComponents(u, v, isList = False):
+    "Takes the two horizontal wind components and combines them into a wind"
+    "speed and direction to be returned."
+    "u = the zonal wind component"
+    "v = the meridional wind component"
+    speed = np.sqrt(np.array(u)**2 + np.array(v)**2)
+    if isList:
+        direction = np.arcsin(v/speed)*180/np.pi
+        for iV in range(len(u)):
+            if speed[iV] > 0:
+                if (u[iV] >= 0) and (v[iV] > 0):
+                    #if u > 0 and v > 0 SW quadrant
+                    direction[iV] = 270.0 - direction[iV]
+                elif (u[iV] > 0) and (v[iV] <= 0):
+                    #if u > 0 and v < 0 NW quadrant
+                    direction[iV] = 270.0 - direction[iV]
+                elif (u[iV] <= 0) and (v[iV] > 0):
+                    #if u < 0 and v > 0 SE quadrant
+                    direction[iV] = 90.0 + direction[iV]
+                elif (u[iV] < 0) and (v[iV] <= 0):
+                    #if u < 0 and v < 0 NE quadrant
+                    direction[iV] = 90.0 + direction[iV]
+            else:
+                direction[iV] = 0.
+    else:
+        direction = np.arcsin(v/speed)*180/np.pi
+        if speed > 0:
+            if (u >= 0) and (v > 0):
+                #if u > 0 and v > 0 SW quadrant
+                direction = 270.0 - direction
+            elif (u > 0) and (v <= 0):
+                #if u > 0 and v < 0 NW quadrant
+                direction = 270.0 - direction
+            elif (u <= 0) and (v > 0):
+                #if u < 0 and v > 0 SE quadrant
+                direction = 90.0 + direction
+            elif (u < 0) and (v <= 0):
+                #if u < 0 and v < 0 NE quadrant
+                direction = 90.0 + direction
+        else:
+            direction = 0.
+    return speed, direction
 
 def main():
     """

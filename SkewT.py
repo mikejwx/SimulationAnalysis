@@ -87,227 +87,6 @@ def getDew(QIN, PIN1):
     
     return Td
 
-def getCAPE(TIN1, QIN, PIN, parcel_type = 0):
-    """
-    Function to calculate surface based CAPE.
-    Tp = User provided parcel (e.g. surface based virtual temperature)
-    TIN1 = User provided profile of temperatures in K
-    QIN  = User provided profile of specific humidity in kg/kg
-    PIN  = User provided profile of pressure in hPa
-    """
-    from scipy import interpolate
-    
-    # Convert to the correct units
-    if (TIN1[0] - 273.15) < 0:
-        Te = TIN1 + 273.15 # converts the environment temperature to Kelvin
-    else:
-        Te = TIN1*1.
-    
-    # Locally define some constants
-    g = 9.81 # gravity
-    cpd = 1005. # specific heat capacity of dry air
-    R = 287.05 # gas constant for dry air
-    G_d = g/cpd # dry adiabatic lapse rate
-    
-    ### Parcel Type
-    if parcel_type == 0:
-        # surface based parcel
-        Tp = Te[0]
-        Q_0  = QIN[0] # get the surface specific humidity
-        T_d0 = getDew(Q_0, PIN[0]) # get the surface dew point
-    elif parcel_type == 1:
-        # mean over lowest ~ 500 m
-        rho = PIN[0]/(R*Te[0])
-        dp500 = 500.*rho*g/100.
-        p_dummy = PIN[0] - np.arange(0., dp500+0.1)
-        Tp = PTtoTemp(np.mean(interpolate.interp1d(PIN, temp2theta(Te, PIN))(p_dummy)), PIN[0])
-        Q_0  = np.mean(interpolate.interp1d(PIN, QIN)(p_dummy)) # get the surface specific humidity
-        T_d0 = getDew(Q_0, PIN[0]) # get the surface dew point
-    else:
-        print('WARNING: Unknown parcel type!!!')
-    
-    # Calculate the LCL temperature using the University of Wyoming's method (Bolton, 1980)
-    A = 1./(T_d0 - 56.)
-    B = np.log(Tp/T_d0)/800.
-    LCL  = (1./(A + B)) + 56.
-    
-    ## Find the LFC ##
-    LFC  = getLFC(Tp, Te, QIN, PIN) # parcel temperature at level of free convection
-    print('LFC = ' + str(LFC))
-    
-    ## Initialise the parcel ascent list and the CAPE to accumulate ##
-    Tps  = [Tp] # parcel temperature
-    CAPE = 0 # convective available potential energy
-    CIN  = 0 # Convective Inhibition
-    
-    ### Start accumulating CAPE ###
-    #print LFC
-    if LFC != None:
-        # an LFC has been found
-        for level in range(1,len(Te)):
-            p_level_half = 0.5*(PIN[level] + PIN[level-1])
-            # convert the thickness of the layer from pressure to height units
-            rho = (p_level_half*100.)/(R*Tp)
-            dz = - (PIN[level] - PIN[level-1])*100./(rho*g) # dp/rho*g, rho = p/RT
-
-            if PIN[level] != 0.0:
-                #print round(Tp, 1)
-                if Tp >= LCL:
-                    #print 'Parcel is below the LCL'
-                    # if the parcel is warmer than the LCL it is below the LCL and should cool at the dry adiabatic lapse rate
-                    Tp -= G_d*dz # dry adiabatic lapse rate
-                    if Tp >= LCL:
-                        # if the new parcel temperature is still below the LCL append it and move on
-                        Tps.append(Tp)
-                    else:
-                        # the new parcel is now above the LCL
-                        # undo the ascent
-                        Tp += G_d*dz
-                        # find the difference between the parcel temperature and the LCL temperature
-                        dT = Tp - LCL
-                        # find the height change needed for the parcel to get to the LCL temperature
-                        delta_z = dT/G_d
-                        # set parcel temperature to the LCL and then lift the parcel the remaining distance but moist adiabatically
-                        Tp = LCL
-                        p_level_middle = 0.5*(PIN[level] + (PIN[level] - PIN[level-1])*delta_z/dz + PIN[level-1])
-                        Tp -= getGM(LCL, p_level_middle)*(dz - delta_z)
-                        # append the correct parcel temperature
-                        Tps.append(Tp)
-                elif Tp >= LFC:
-                    #print 'Parcel is above the LCL and below the LFC'
-                    # if the parcel is cooler than the LCL but warmer than the LFC it should cool at the moist adiabatic lapse rate, but not accumulate CAPE
-                    Tp -= getGM(Tps[-1], p_level_half)*dz
-                    Tps.append(Tp)
-                    
-                    Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
-                    Te_level_half = 0.5*(Te[level] + Te[level-1])
-                    CIN += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
-                else:
-                    #print 'Parcel is above the LFC'
-                    # otherwise cool at moist adiabatic lapse rate and accumulate CAPE
-                    Tp -= getGM(Tps[-1], p_level_half)*dz
-                    Tps.append(Tp)
-                    
-                    # get the mean temperature between levels for the parcel and environment
-                    Tp_level_half = 0.5*(Tps[-1] + Tps[-2])
-                    Te_level_half = 0.5*(Te[level] + Te[level-1])
-                    #print [round(Tp_level_half, 1), round(Te_level_half, 1)]
-                    if Tp_level_half > Te_level_half:
-                        # if the parcel is warmer than the environment, accumulate CAPE
-                        CAPE += g*(Tp_level_half - Te_level_half)*dz/Te_level_half
-            else:
-                Tp -= G_d*dz
-                Tps.append(Tp)
-    else:
-        # there is no LFC
-        for level in range(1,len(Te)):
-            p_level_half = 0.5*(PIN[level] + PIN[level-1])
-            # convert the thickness of the layer from pressure to height units
-            rho = (p_level_half*100.)/(R*Tp)
-            dz = - (PIN[level] - PIN[level-1])*100./(rho*g) # dp/rho*g, rho = p/RT
-            
-            if PIN[level] != 0.0:
-                if Tp >= LCL:
-                    # if below the LCL, cool dry adiabatically
-                    Tp -= G_d*dz
-                else:
-                    # above the LCL and cool moist adiabatcally
-                    Tp -= getGM(Tps[-1], p_level_half)*dz
-                Tps.append(Tp)
-            else:
-                Tp -= G_d*dz
-                Tps.append(Tp)
-    
-    # calculate the pressure of the LCL and the LFC
-    LCLp = interpolate.interp1d(Tps, PIN, fill_value = 'extrapolate')(LCL)#PIN[0]*(LCL/Te[0])**(cpd/R)
-    #print LCLp
-    LFCp = interpolate.interp1d(Tps, PIN, fill_value = 'extrapolate')(LFC)#PIN[0]*(LFC/Te[0])**(cpd/R)
-    #print LFCp
-    return CAPE, CIN, Tps, LCLp, LFCp
-
-def PTtoTemp(TIN, PIN):
-    "converts potential temperature to temperature"
-    Rd = 287.05
-    cp = 1005.
-    Temperature = TIN/((1000./PIN)**(Rd/cp))
-    
-    return Temperature
-
-def temp2theta(TIN, PIN, P0 = 1000.):
-    "TIN: input temperatures (K)"
-    "PIN: input pressures (hPa)"
-    
-    # check that a temperature is passed in Kelvin.
-    if type(TIN) == np.ndarray:
-        if TIN[0] - 273.15 < 0:
-            TIN += 273.15
-    elif TIN - 273.15 < -100:
-        TIN += 273.15
-    
-    R = 287. #gas constant for dry air
-    cp = 1004. #specific heat capacity for dry air
-    theta = TIN*(P0/PIN)**(R/cp)
-    return theta
-
-def getLFC(Tp, Te, QIN, PIN):
-    """
-    Function to calculate the LFC.
-    Tp = the temperature of a parcel, K
-    Te = the temperature of the environment, K
-    QIN = the specific humidity profile, kg/kg
-    PIN = the pressure profile, hPa
-    """
-    # Locally define some constants
-    g    = 9.81 # gravity
-    R    = 287.05 # specific gas constant for dry air
-    cpd  = 1005. # specific heat capacity of dry air at constant pressure
-    G_d  = g/cpd # dry adiabatic lapse rate
-    
-    # Lets get some unit conversions going
-    Q_0  = np.mean(QIN[0]) # surface specific humidity
-    T_d0 = getDew(Q_0, PIN[0]) # surface dew point
-    
-    # Use the University of Wyoming's formula (Bolton, 1980) to find LCL temperature, K
-    A    = 1./(T_d0 - 56.)
-    B    = np.log(Tp/T_d0)/800.
-    LCL  = (1./(A + B)) + 56.
-    
-    # Begin lifting the parcel to find where it is positively buoyant
-    for level in range(len(Te)-1):
-        # for each observed vertical level
-        p_level_half = 0.5*(PIN[level+1] + PIN[level]) # pressure in between current level and the level above
-        rho = (p_level_half*100.)/(R*Tp) # air density in the layer between the current level and the level above
-        dz = -(PIN[level+1] - PIN[level])*100./(rho*g) # hydrostatic balance to get the height between the two levels e.g. dp/rho*g, rho = p/RT
-        if Tp > LCL:
-            #print 'Parcel is below the LCL'
-            # if the parcel is warmer than the LCL it is below the LCL and should cool at the dry adiabatic lapse rate
-            Tp -= G_d*dz # dry adiabatic lapse rate
-            if Tp < LCL:
-                # the new parcel is now above the LCL
-                # undo the ascent
-                Tp += G_d*dz
-                # find the difference between the parcel temperature and the LCL temperature
-                dT = Tp - LCL
-                # find the height change needed for the parcel to get to the LCL temperature
-                delta_z = dT/G_d
-                # set parcel temperature to the LCL and then lift the parcel the remaining distance but moist adiabatically
-                Tp = LCL
-                p_level_middle = 0.5*(PIN[level] + (PIN[level] - PIN[level-1])*delta_z/dz + PIN[level-1])
-                Tp -= getGM(LCL, p_level_middle)*(dz - delta_z)
-        else:
-            # above LCL cool at moist lapse rate
-            Tp -= getGM(Tp, p_level_half)*dz
-            # print [PIN[level], Tp, Te[level], level]
-            if Tp >= Te[level+1]:
-                # if the parcel is warmer than environment it is free
-                LFCT = Tp # set LFC temperature
-                break
-    if level == (len(Te)-2):
-        LFCT = None
-    
-    return LFCT
-
-
 #contains methods to plot a skew T when passed temperature and specific humidity values
 #varying with height and pressure
 #data at altitudes lower than the 100hPa level is plotted
@@ -450,31 +229,15 @@ def windBarbs(u_in, v_in, p_in, gs):
     plt.axis('off')
 
 def plotSkewT(temp, t_dew, p, u = np.array([-999]), v = np.array([-999]), 
-              CAPE = False, date = -999, my_title = '', temp_col = ['r'], 
-              dew_col = ['b']):
-    """
-    Plots a skewT-logP diagram on the paper I've defined above.
-    Requires an input temperature, dewpoint, pressure, and optional u- and v- 
-    wind components. If CAPE is set to .True. then a call is made to calculate
-    the surface-based parcel ascent. This provides CAPE, CIN computed using
-    temperature.
-    
-    Here, CAPE is defined as the positively buoyant region between the level
-    of free convection and the highest level of neutral buoyancy.
-    
-    CIN, however, is defined as the negatively buoyant region between the 
-    lifting condensation level and the level of free convection.
-    ---------------------------------------------------------------------------
-    Optimal input units:
-    temp    = deg C
-    t_dew   = deg C
-    p       = hPa
-    u       = kts
-    v       = kts
-    """
+              parcel_temp = np.array([-999]), CAPE = -999, date = -999, 
+              my_title = '', temp_col = ['r'], dew_col = ['g']):
+    # plots a skewT on the paper I've defined above.
+    # includes a parcel ascent if available
+    # includes CAPE in the title if provided
+    # temp and t_dew in degC
+    # p in hPa
     ### get the correct units for temp and t_dew ###
     # should be in deg C
-    from scipy import interpolate 
     
     gs = gridspec.GridSpec(1, 2, width_ratios = [4, 1])
     gs.update(wspace=0.0, hspace=0.0)
@@ -519,30 +282,28 @@ def plotSkewT(temp, t_dew, p, u = np.array([-999]), v = np.array([-999]),
     ## plot the sounding ##
     # make sure our input are lists
     if type(temp) != list:
-        print( 'WARNING! converting to a list of temperature profiles.')
+        print 'WARNING! converting to a list of temperature profiles.'
         temp = [temp]
     if type(t_dew) != list:
-        print( 'WARNING! Converting to a list of dewpoint profiles.')
+        print 'WARNING! Converting to a list of dewpoint profiles.'
         t_dew = [t_dew]
     if type(p) != list:
-        print( 'WARNING! Converting to a list of pressure profiles.')
+        print 'WARNING! Converting to a list of pressure profiles.'
         p = [p]
     if type(u) != list:
-        print( 'WARNING! Converting to a list of uwind profiles.')
         u = [u]
     if type(v) != list:
-        print( 'WARNING! Converting to a list of vwind profiles.')
         v = [v]
     
     # some error checking to ensure that there is a matching temperature and dewpoint list
     if len(temp) != len(t_dew):
-        print( 'ERROR! You have an unequal number of temperature and dewpoint profiles')
+        print 'You have an unequal number of temperature and dewpoint profiles'
     if len(temp_col) != len(temp):
-        print( 'WARNING! The number of temperature colors provided does not match the number of temperature profiles. Taking the same dewpoint color for each profile.')
+        print 'WARNING! The number of temperature colors provided does not match the number of temperature profiles. Taking the same dewpoint color for each profile.'
         while len(temp_col) != len(temp):
             temp_col.append(temp_col[-1])
     if len(dew_col) != len(t_dew):
-        print( 'WARNING! The number of dewpoint colors provided does not match the number of dewpoint profiles. Taking the same dewpoint color for each profile.')
+        print 'WARNING! The number of dewpoint colors provided does not match the number of dewpoint profiles. Taking the same dewpoint color for each profile.'
         while len(dew_col) != len(t_dew):
             dew_col.append(dew_col[-1])
     
@@ -554,23 +315,18 @@ def plotSkewT(temp, t_dew, p, u = np.array([-999]), v = np.array([-999]),
         if (np.min(t_dew[i]) > 0) and (np.max(t_dew[i] > 100.)):
             t_dew[i] -= 273.15
         # plot the temperature
-        #print 'Plotting the temperature profile'
-        #print 'Length temp[i] = ' + str(len(temp[i]))
-        #print 'Length p[i] = ' + str(len(p[i]))
+        print 'Plotting the temperature profile'
         ax.semilogy(skew(temp[i], p[i]), p[i], color = temp_col[i], lw = 2)
         # plot the dew point
-        #print 'Plotting the dewpoint profile'
-        #print 'Length t_dew[i] = ' + str(len(temp[i]))
+        print 'Plotting the dewpoint profile'
         ax.semilogy(skew(t_dew[i], p[i]), p[i], color = dew_col[i], lw = 2)
-        if CAPE:
-            my_q = getQ(t_dew[i]+273.15, np.zeros_like(t_dew[i])+100., p[i])
-            my_CAPE, my_CIN, my_Parcel, LCLp, LFCp = getCAPE(temp[i], my_q, p[i], parcel_type = 1)
-            my_title = 'CAPE = ' + str(round(my_CAPE, 0)) + 'Jkg$^{-1}$\n CIN = ' + str(round(my_CIN, 0)) + 'Jkg$^{-1}$'
-            if np.nanmin(my_Parcel) > 0:
-                my_Parcel = np.array([obs - 273.15 for obs in my_Parcel])
-            ax.semilogy(skew(my_Parcel, p[i]), p[i], color = 'gray', lw = 2)
-            ax.semilogy([-100, 100], [LCLp, LCLp], color = 'k')
-            ax.semilogy([-100, 100], [LFCp, LFCp], color = 'k')
+    if parcel_temp[0] != -999:
+        if np.min(parcel_temp) > 0:
+            parcel_temp -= 273.15
+        ax.semilogy(skew(parcel_temp, p), p, color = 'gray', lw = 2)
+    if CAPE != -999:
+        my_title = 'CAPE using $T_v$ = ' + str(round(CAPE, 0)) + '$Jkg^{-1}$'
+    
     ax.set_ylim([np.max([np.max([np.max(p_i) for p_i in p]), 1025.]), 100])
     ax.grid(axis = 'y')
     ax.set_yticks(wmo_p)
@@ -588,8 +344,6 @@ def plotSkewT(temp, t_dew, p, u = np.array([-999]), v = np.array([-999]),
         if u[i][0] != -999:
             # windBarbs(u, v, p, gs)
             # only use wind obs on wmo pressure levels so we can see all the wind barbs
-            #print 'Length p[i] = ' + str(len(p[i]))
-            #print 'Length u[i] = ' + str(len(u[i]))
             u_wmo = interpolate.interp1d(p[i], u[i], fill_value = 'extrapolate')(wmo_p)
             v_wmo = interpolate.interp1d(p[i], v[i], fill_value = 'extrapolate')(wmo_p)
             
@@ -599,7 +353,7 @@ def plotSkewT(temp, t_dew, p, u = np.array([-999]), v = np.array([-999]),
                 clip_on = False, zorder=100)
             ax2.set_xlim([-1, 1])
             ax2.set_ylim([np.max([np.max([np.max(p_i) for p_i in p]), 1025.]), 100])
-            #print 'Plotted wind barbs'
+            print 'Plotted wind barbs'
             ax2.set_xticks([])
             ax2.axis('off')
 
