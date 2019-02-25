@@ -750,6 +750,134 @@ def circular_smoothing(X, Y, data, r, scale = 1):
     
     return smoothed_data
 
+def get_rectangle(x_c, y_c, X, Y, direction, half_width, min_distance, max_distance):#mask, sector, length, my_res = 10.0):
+    """
+    x_c, y_c are the coordinates of the point of interest (e.g. the centre of the island)
+    X = a 2d array of the x-corrdinates
+    Y = a 2d array of the y-coordinates
+    direction = the direction in which to look (i.e. if the wind is from 90 deg, we look positive in the 270 deg direction)
+    half_width = the width of the rectangle divided by two (user inputs in the same units are the coordinate system (i.e. degrees lat/lon or metres)
+    min_distance = the minimum distance from the x_c,y_c coordinate
+    max_distance = the maximum distance from the x_c,y_c coordinate
+    """
+    # Convert from the wind direction to the heading
+    direction = (direction + 180.)%360.
+    # Find the distance of each point from the x_c, y_c coordinate of interest
+    R = np.sqrt((x_c - X)**2 + (y_c - Y)**2)
+    # Find the bearing of each point from the x_c, y_c coordinate of interest
+    T = np.where(((y_c - Y) >= 0), (np.arctan((x_c - X)/(y_c - Y))*180./np.pi-180.)%360., (np.arctan((x_c - X)/(y_c - Y))*180./np.pi)%360.)
+    # Find the index for the point with R nearest to min_distance and T nearest to direction
+    iy, ix = np.where(np.abs(R - min_distance)*np.abs(T - direction) == np.min(np.abs(R - min_distance)*np.abs(T - direction)))
+    iy = iy[0]
+    ix = ix[0]
+    
+    # draw line perpendicular to direction
+    if direction <= 90.:
+        x_fact = 1.
+        y_fact = 1.
+    elif direction <= 180.:
+        x_fact = 1.
+        y_fact = -1.
+    elif direction <= 270.:
+        x_fact = -1.
+        y_fact = -1.
+    else:
+        x_fact = -1.
+        y_fact = 1.
+    
+    dx1 = half_width*np.cos(direction*np.pi/180.)
+    dy1 = half_width*np.sin(direction*np.pi/180.)
+    
+    left_X = X[iy, ix]-dx1
+    left_Y = Y[iy, ix]+dy1
+    right_X = X[iy, ix]+dx1
+    right_Y = Y[iy, ix]-dy1
+    
+    ## draw lines at 90deg to our first line
+    opposite = abs(left_X - right_X)
+    adjacent = abs(left_Y - right_Y)
+    hypotenuse = np.sqrt(opposite**2 + adjacent**2)
+    angle = np.arcsin(opposite/hypotenuse)*360./(2.*np.pi)
+    ## use angle_b to find the coordinates for the other two corners of the rectangle
+    length = max_distance - min_distance
+    dx = length*np.cos(angle*np.pi/180.)
+    dy = length*np.sin(angle*np.pi/180.)
+    new_left_X = left_X + dx*x_fact
+    new_left_Y = left_Y + dy*y_fact
+    new_right_X = right_X + dx*x_fact
+    new_right_Y = right_Y + dy*y_fact
+    
+    ## get the indices enclosed by that rectangle
+    #A. left to right
+    ma = (right_Y - left_Y)/(right_X - left_X)
+    ca = left_Y
+    #B. right to new_right
+    mb = (new_right_Y - right_Y)/(new_right_X - right_X)
+    cb = right_Y
+    #C. new_right to new_left
+    mc = (new_left_Y - new_right_Y)/(new_left_X - new_right_X)
+    cc = new_right_Y
+    #D. new_left to left
+    md = (left_Y - new_left_Y)/(left_X - new_left_X)
+    cd = new_left_Y
+    
+    if direction == 0.:
+        i_rect_xa, i_rect_ya = np.where(Y > ma*(X-left_X)+ca)
+        i_rect_xb, i_rect_yb = np.where(X < (Y-cb)/mb + right_X)
+        i_rect_xc, i_rect_yc = np.where(Y < mc*(X-new_right_X)+cc)
+        i_rect_xd, i_rect_yd = np.where(X > (Y-cd)/md + new_left_X)
+    elif direction < 90.:
+        i_rect_xa, i_rect_ya = np.where(Y > ma*(X-left_X)+ca)
+        i_rect_xb, i_rect_yb = np.where(Y > mb*(X-right_X)+cb)
+        i_rect_xc, i_rect_yc = np.where(Y < mc*(X-new_right_X)+cc)
+        i_rect_xd, i_rect_yd = np.where(Y < md*(X-new_left_X)+cd)
+    elif direction == 90.:
+        i_rect_xa, i_rect_ya = np.where(X > (Y-ca)/ma + left_X)
+        i_rect_xb, i_rect_yb = np.where(Y > mb*(X-right_X)+cb)
+        i_rect_xc, i_rect_yc = np.where(X < (Y-cc)/mc + new_right_X)
+        i_rect_xd, i_rect_yd = np.where(Y < md*(X-new_left_X)+cd)
+    elif direction < 180.:
+        i_rect_xa, i_rect_ya = np.where(Y < ma*(X-left_X)+ca)
+        i_rect_xb, i_rect_yb = np.where(Y > mb*(X-right_X)+cb)
+        i_rect_xc, i_rect_yc = np.where(Y > mc*(X-new_right_X)+cc)
+        i_rect_xd, i_rect_yd = np.where(Y < md*(X-new_left_X)+cd)
+    elif direction == 180.:
+        i_rect_xa, i_rect_ya = np.where(Y < ma*(X-left_X)+ca)
+        i_rect_xb, i_rect_yb = np.where(X > (Y-cb)/mb + right_X)
+        i_rect_xc, i_rect_yc = np.where(Y > mc*(X-new_right_X)+cc)
+        i_rect_xd, i_rect_yd = np.where(X < (Y-cd)/md + new_left_X)
+    elif direction < 270.:
+        i_rect_xa, i_rect_ya = np.where(Y < ma*(X-left_X)+ca)
+        i_rect_xb, i_rect_yb = np.where(Y < mb*(X-right_X)+cb)
+        i_rect_xc, i_rect_yc = np.where(Y > mc*(X-new_right_X)+cc)
+        i_rect_xd, i_rect_yd = np.where(Y > md*(X-new_left_X)+cd)
+    elif direction == 270:
+        i_rect_xa, i_rect_ya = np.where(X < (Y-ca)/ma + left_X)
+        i_rect_xb, i_rect_yb = np.where(Y < mb*(X-right_X)+cb)
+        i_rect_xc, i_rect_yc = np.where(X > (Y-cc)/mc + new_right_X)
+        i_rect_xd, i_rect_yd = np.where(Y > md*(X-new_left_X)+cd)
+    else:
+        i_rect_xa, i_rect_ya = np.where(Y > ma*(X-left_X)+ca)
+        i_rect_xb, i_rect_yb = np.where(Y < mb*(X-right_X)+cb)
+        i_rect_xc, i_rect_yc = np.where(Y < mc*(X-new_right_X)+cc)
+        i_rect_xd, i_rect_yd = np.where(Y > md*(X-new_left_X)+cd)
+    
+    my_mask_a = np.zeros_like(X)
+    my_mask_b = np.zeros_like(X)
+    my_mask_c = np.zeros_like(X)
+    my_mask_d = np.zeros_like(X)
+    for i in range(len(i_rect_xa)):
+        my_mask_a[i_rect_xa[i],i_rect_ya[i]] = 1.
+    for i in range(len(i_rect_xb)):
+        my_mask_b[i_rect_xb[i],i_rect_yb[i]] = 1.
+    for i in range(len(i_rect_xc)):
+        my_mask_c[i_rect_xc[i],i_rect_yc[i]] = 1.
+    for i in range(len(i_rect_xd)):
+        my_mask_d[i_rect_xd[i],i_rect_yd[i]] = 1.
+    
+    my_mask = my_mask_a*my_mask_b*my_mask_c*my_mask_d
+    
+    return my_mask
 ################################################################################
 #                                                                              #
 # Minimise number of points in a profile                                       #
