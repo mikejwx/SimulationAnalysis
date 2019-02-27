@@ -1,2 +1,0 @@
-/home/y07/y07/cse/anaconda/python2/lib/python2.7/site-packages/numpy/core/_methods.py:26: VisibleDeprecationWarning: using a non-integer number instead of an integer will result in an error in the future
-  return umr_maximum(a, axis, None, out, keepdims)
