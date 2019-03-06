@@ -98,7 +98,7 @@ for path in paths:
             lats_var[:]  = theta_nc.variables['latitude_t'][:]*1.
             lons_var[:]  = theta_nc.variables['longitude_t'][:]*1.
             
-            for it in xrange(it_start, len(theta_nc.variables['min10_0'][:])):
+            for it in xrange(it_start, len(theta_nc.variables[time_key][:])):
                 print '[' + dt.now().strftime("%H:%M:%S") + '] Working on time slice number ' + str(it) + ', for netCDF hour ' + str(hour)
                 theta_v = theta_nc.variables[theta_key][it,:,:,:]*(1. + 0.608*theta_nc.variables[q_key][it,:,:,:])
                 
@@ -138,58 +138,58 @@ for path in paths:
         zi1_ts = np.concatenate((zi1_ts, np.mean(zi1_data, axis = (1, 2))))
         lcl_ts = np.concatenate((lcl_ts, np.mean(lcl_data, axis = (1, 2))))
 
-# cloud cover and liquid water path stuff
-print '[' + dt.now().strftime("%H:%M:%S") + '] Opening lwp netCDF...'
-lwp_nc = Dataset('lwp_00.nc', 'r')
-lwp_key   = 'STASH_m01s30i405'
+    # cloud cover and liquid water path stuff
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Opening lwp netCDF...'
+    lwp_nc = Dataset('lwp_00.nc', 'r')
+    lwp_key   = 'STASH_m01s30i405'
 
-print '[' + dt.now().strftime("%H:%M:%S") + '] Creating the mean lwp and cloud cover time series...'
-lwp_ts = np.zeros_like(times)
-cc_ts = np.zeros_like(times)
-for i in xrange(times.shape[0]):
-    lwp_ts[i] = np.mean(lwp_nc.variables[lwp_key][2*i,:,:])
-    cloud_mask = np.where((lwp_nc.variables[lwp_key][2*i,:,:] > 1e-08), 1., 0.0)
-    cc_ts[i] = np.mean(cloud_mask)
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Creating the mean lwp and cloud cover time series...'
+    lwp_ts = np.zeros_like(times)
+    cc_ts = np.zeros_like(times)
+    for i in xrange(times.shape[0]):
+        lwp_ts[i] = np.mean(lwp_nc.variables[lwp_key][2*i,:,:])
+        cloud_mask = np.where((lwp_nc.variables[lwp_key][2*i,:,:] > 1e-08), 1., 0.0)
+        cc_ts[i] = np.mean(cloud_mask)
 
-# reset the missing data in the first index to be 0
-lwp_ts[0] = 0.0
-cc_ts[0] = 0.0
+    # reset the missing data in the first index to be 0
+    lwp_ts[0] = 0.0
+    cc_ts[0] = 0.0
 
-lwp_nc.close()
+    lwp_nc.close()
 
-print '[' + dt.now().strftime("%H:%M:%S") + '] Making the plot...'
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Making the plot...'
 
-fig = plt.figure()
+    fig = plt.figure()
 
-ax = fig.add_subplot(1, 3, 1)
-ax.plot(times/60., zi0_ts, 'r', lw = 2)
-ax.plot(times/60., zi1_ts, 'b', lw = 1)
-ax.plot(times/60., lcl_ts, 'k--')
-ax.set_ylim([400, 1000])
-ax.set_ylabel('Height (m)')
-ax.set_xlim([0, 24])
-ax.set_xticks(range(0, 25, 6))
-ax.set_xlabel('Time (hours)')
-plt.legend(loc = 2)
+    ax = fig.add_subplot(1, 3, 1)
+    ax.plot(times/60., zi0_ts, 'r', lw = 2)
+    ax.plot(times/60., zi1_ts, 'b', lw = 1)
+    ax.plot(times/60., lcl_ts, 'k--')
+    ax.set_ylim([400, 1000])
+    ax.set_ylabel('Height (m)')
+    ax.set_xlim([0, 24])
+    ax.set_xticks(range(0, 25, 6))
+    ax.set_xlabel('Time (hours)')
+    plt.legend(loc = 2)
 
-ax1 = fig.add_subplot(1, 3, 2)
-ax1.plot(times/60., lwp_ts*1000., 'k:', lw = 2)
-ax1.set_ylabel('Liquid Water Path (g m$^{-2}$)')
-ax1.set_ylim([0, 30])
-ax1.set_xlim([0, 24])
-ax1.set_xticks(range(0, 25, 6))
-ax1.set_xlabel('Time (hours)')
+    ax1 = fig.add_subplot(1, 3, 2)
+    ax1.plot(times/60., lwp_ts*1000., 'k:', lw = 2)
+    ax1.set_ylabel('Liquid Water Path (g m$^{-2}$)')
+    ax1.set_ylim([0, 30])
+    ax1.set_xlim([0, 24])
+    ax1.set_xticks(range(0, 25, 6))
+    ax1.set_xlabel('Time (hours)')
 
-ax2 = fig.add_subplot(1, 3, 3)
-ax2.plot(times/60., cc_ts, 'k')
-ax2.set_ylabel('Cloud Cover')
-ax2.set_ylim([0, 0.4])
-ax2.set_xlim([0, 24])
-ax2.set_xticks(range(0, 25, 6))
-ax2.set_xlabel('Time (hours)')
+    ax2 = fig.add_subplot(1, 3, 3)
+    ax2.plot(times/60., cc_ts, 'k')
+    ax2.set_ylabel('Cloud Cover')
+    ax2.set_ylim([0, 0.4])
+    ax2.set_xlim([0, 24])
+    ax2.set_xticks(range(0, 25, 6))
+    ax2.set_xlabel('Time (hours)')
 
-fig.tight_layout()
-plt.savefig('../zi_lcl_cc_lwp.png', dpi = 100)
-plt.close('all')
+    fig.tight_layout()
+    plt.savefig('../zi_lcl_cc_lwp_exp0'+ str(paths.index(path)) + '.png', dpi = 150)
+    plt.close('all')
 
 
