@@ -1,7 +1,7 @@
  # script to plot skew-T from the simulations
 from netCDF4 import Dataset
 from scipy import interpolate
-execfile('SkewT.py')
+from SkewT_archer import *
 def horizontalMean(data):
     """
     Function to compute and return the horizontal mean of a given array.
@@ -138,11 +138,11 @@ v_key = u'STASH_m01s00i003'
 for day in days:
     print 'starting day ' + day
     
-    bouy = Dataset('bouy_'+day+'.nc', 'r')
-    fluxes = Dataset('fluxes_'+day+'.nc', 'r')
-    mr = Dataset('mr_'+day+'.nc', 'r')
-    u = Dataset('u_'+day+'.nc', 'r')
-    v = Dataset('v_'+day+'.nc', 'r')
+    bouy = Dataset('/nerc/n02/n02/xb899100/CloudTrail/Spin-up_control/bouy_'+day+'.nc', 'r')
+    fluxes = Dataset('/nerc/n02/n02/xb899100/CloudTrail/Spin-up_control/fluxes_'+day+'.nc', 'r')
+    mr = Dataset('/nerc/n02/n02/xb899100/CloudTrail/Spin-up_control/mr_'+day+'.nc', 'r')
+    u = Dataset('/nerc/n02/n02/xb899100/CloudTrail/Spin-up_control/u_'+day+'.nc', 'r')
+    v = Dataset('/nerc/n02/n02/xb899100/CloudTrail/Spin-up_control/v_'+day+'.nc', 'r')
     
     theta = bouy.variables[theta_key][:]
     #regrid the pressures and specific humidity
@@ -180,7 +180,7 @@ for day in days:
     v_rg[theta.shape[0]*days.index(day):theta.shape[0]*(days.index(day)+1),:] = horizontalMean(v_regrid)[:]
     q_rg[theta.shape[0]*days.index(day):theta.shape[0]*(days.index(day)+1),:] = horizontalMean(q_regrid)[:]
     mv_rg[theta.shape[0]*days.index(day):theta.shape[0]*(days.index(day)+1),:] = horizontalMean(mv_regrid)[:]
-    rh_rg[theta.shape[0]*days.index(day):theta.shape[0]*(days.index(day)+1),:] = horizontalMean(q_regrid/getQ(temp, 100., pressure_regrid))
+    rh_rg[theta.shape[0]*days.index(day):theta.shape[0]*(days.index(day)+1),:] = horizontalMean(q_regrid/getQ(temp, 100., pressure_regrid, t_units = 'K', p_units = 'Pa', ))
     theta_rg[theta.shape[0]*days.index(day):theta.shape[0]*(days.index(day)+1),:] = horizontalMean(theta)[:]
 
 # Time output every ten minutes
@@ -193,7 +193,7 @@ times = np.arange(1., 14400.*len(days), 10.)/60.
 #    plt.close('all')
 
 dt_i = theta.shape[0]
-with open('balanced_settings.txt', 'a') as my_file:
+with open('../balanced_settings.txt', 'a+') as my_file:
     my_file.write('The following are the thermodynamic profiles averaged over \n the last four days of simulation, when it is roughly in equilibrium.\n')
     my_file.write('Potential Temperature (Theta)\n')
     # Find minimum number of required levels to reproduce theta profile
