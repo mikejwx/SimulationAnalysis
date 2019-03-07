@@ -884,7 +884,7 @@ def get_rectangle(x_c, y_c, X, Y, direction, half_width, min_distance, max_dista
 #                                                                              #
 ################################################################################
 
-def RDP(x, y, e):
+def RDP(x, y, e, l_testing = 0):
     """
     Algorithm to choose the minimum number of points that retains the shape of 
     y with maximum error, "error". Returns the values of y, and the coordinates 
@@ -897,19 +897,22 @@ def RDP(x, y, e):
     # The first point of our data is the same as the first point in our simplification
     x_simplified = [x[index0]]
     y_simplified = [y[index0]]
-    #plt.plot(x, y, 'k-', marker = 'o', lw = 2)
-    #plt.show()
+    if l_testing: fig = plt.figure()
+    if l_testing: ax = fig.add_subplot(1, 1, 1)
+    if l_testing: ax.plot(x, y, 'k-', marker = 'o', lw = 2)
+    if l_testing: plt.pause(0.1)
     while (index0 < (end - 1)):
         #first estimate is a straight line between the first and last point of the data
         y_est = (y[index1] - y[index0])*(x - x[index0])/(x[index1] - x[index0]) + y[index0]
         d = np.abs(y - y_est)[index0:index1]
         dmax = np.max(d)
         while (dmax > e)*(index0 < index1):
-            #plt.plot(x, y, 'k-', marker = 'o', lw = 2)
-            #plt.plot(x[index0:(index1+1)], y_est[index0:(index1+1)], 'b--')
+            if l_testing: ax.cla()
+            if l_testing: ax.plot(x, y, 'k-', marker = 'o', lw = 2)
+            if l_testing: ax.plot(x[index0:(index1+1)], y_est[index0:(index1+1)], 'b--')
             index1 = index0 + np.where(d == dmax)[0][0] # find the index of distance_max > error
-            #plt.plot(x[index1], y[index1], 'ro')
-            #plt.show()
+            if l_testing: ax.plot(x[index1], y[index1], 'ro')
+            if l_testing: plt.pause(0.1)
             y_est = (y[index1] - y[index0])*(x - x[index0])/(x[index1] - x[index0]) + y[index0] # draw straight line to that point
             d = np.abs(y[index0:index1] - y_est[index0:index1]) # recalculate the differences
             dmax = np.max(d) # find the maximum differences
