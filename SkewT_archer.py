@@ -136,7 +136,7 @@ def getDew(QIN, PIN1, q_units = 'kg/kg', p_units = 'hPa'):
         PIN = PIN1*1.
     
     if q_units == 'g/kg':
-        QIN /= 1000.
+        QIN = QIN/1000.
     
     # Convert the specific humidity to a mixing ratio
     W = QIN/(1. - QIN)
@@ -462,12 +462,21 @@ def getCAPEv1(TIN1, QIN, PIN, parcel_type = 0):
     return CAPE, CIN, Tps, LCLp, LFCp
     
 
-def PTtoTemp(theta, PIN):
+def PTtoTemp(theta, PIN, t_units = 'K', p_units = 'hPa'):
     """
     Converts potential temperature to temperature.
     theta: potential temperature (K)
     PIN: pressure (hPa)
+    
+    Other recognised units include, C - Celsius and Pa - Pascals.
     """
+    
+    # Perform any required unit conversions
+    if t_units == 'C':
+        theta = theta + 273.15
+    
+    if p_units == 'Pa':
+        PIN = PIN/100.
     
     Temperature = theta/((1000./PIN)**(Rd/cpd))
     
