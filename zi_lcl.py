@@ -5,6 +5,7 @@ from netCDF4 import Dataset
 from scipy import interpolate
 from datetime import datetime as dt
 from analysis_tools import zi, lcl, find_h, get_CTZ
+from SkewT_archer import PTtoTemp
 
 """
 Code to calculate the mixed layer depth from a simple level of neutral buoyancy
@@ -14,7 +15,8 @@ Then compute the domain mean of these quantities and plot their time series.
 """
 
 # Read in the data
-hours = ["{0:02d}".format(hour) for hour in xrange(0,24,3)]
+#hours = ["{0:02d}".format(hour) for hour in xrange(0,24,3)]
+hours = ["{0:02d}".format(d) for d in xrange(1, 11)] # days for the spinup simulation
 nhours = len(hours)
 
 # for our 1-day simulation there are 1440 minutes
@@ -33,7 +35,8 @@ p0 = 1e5
 create_netCDF = True
 
 # Define keys to read variables from UM output
-pres_key  = u'STASH_m01s00i408'
+pres_key  = u'STASH_m01s00i408' # Pressure on theta levels
+pres_key1 = u'STASH_m01s00i407' # Pressure on rho levels (to be used for spin-up sims
 theta_key = u'STASH_m01s00i004'
 q_key     = u'STASH_m01s00i010' # specific humidity returns a masked array where values are below the reset at the first time step
 temp_key  = u'STASH_m01s16i004'
@@ -46,7 +49,10 @@ zi0_key = u'boundary layer depth'
 zi1_key = u'new boundary layer depth'
 lcl_key = u'lifting condensation level'
 ctz_key = u'cloud top height'
-paths = ['/work/n02/n02/xb899100/cylc-run/u-bg023/share/data/history/', '/work/n02/n02/xb899100/cylc-run/u-bg113/share/data/history/']
+paths = ['/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/']
+ID = 'U05_Spinup'
+l_spin_up = True
+
 for path in paths:
     for hour in hours:
         if create_netCDF:
@@ -63,11 +69,13 @@ for path in paths:
             print '[' + dt.now().strftime("%H:%M:%S") + '] Open wind_nc'
             wind_nc  = Dataset(path + 'wind_'+hour+'.nc', 'r')
             
-            if hour == '00':
+            if hour == hours[0]:
                 print '[' + dt.now().strftime("%H:%M:%S") + '] Grabbing the height coordinates'
                 time_key = [i for i in wind_nc.variables.keys() if 'min' in i][0]
                 z_theta = theta_nc.variables['thlev_zsea_theta'][:]
+                z_rho = pres_nc.variables['rholev_zsea_rho'][:]
                 it_start = 1 # because we have moisture resetting, the first time step is filled with missing data for q
+                dim_y, dim_x = theta_nc.variables[theta_key][0,0,:,:].shape
             else:
                 it_start = 0
             
@@ -78,8 +86,8 @@ for path in paths:
             print '[' + dt.now().strftime("%H:%M:%S") + '] Creating dimensions for the netCDF'
             # create dimensions for that netcdf
             time_dim = zi_nc.createDimension('time', wind_nc.variables[time_key][it_start:].shape[0])
-            lat_dim  = zi_nc.createDimension('lat', 319)
-            lon_dim  = zi_nc.createDimension('lon', 1160)
+            lat_dim  = zi_nc.createDimension('lat', dim_y)
+            lon_dim  = zi_nc.createDimension('lon', dim_x)
             
             print '[' + dt.now().strftime("%H:%M:%S") + '] Creating variables for the netCDF'
             # create variables for each dimension
@@ -100,15 +108,22 @@ for path in paths:
             
             for it in xrange(it_start, len(theta_nc.variables[time_key][:])):
                 print '[' + dt.now().strftime("%H:%M:%S") + '] Working on time slice number ' + str(it) + ', for netCDF hour ' + str(hour)
-                theta_v = theta_nc.variables[theta_key][it,:,:,:]*(1. + 0.608*theta_nc.variables[q_key][it,:,:,:])
-                
+                if not l_spin_up:
+                    theta_v = theta_nc.variables[theta_key][it,:,:,:]*(1. + 0.608*theta_nc.variables[q_key][it,:,:,:])
+                else:
+                    theta_v = theta_nc.variables[theta_key][it,:,:,:]*(1. + 0.608*mr_nc.variables[q_key][it,:,:,:])
                 # populate the boundary layer height variable
                 print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating zi0...'
                 zi0_var[it-it_start,:,:] = zi(theta_v, z_theta)[:]
                 print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating zi1...'
                 zi1_var[it-it_start,:,:] = find_h(theta_v, wind_nc.variables[u_key][it,:,:,:], wind_nc.variables[v_key][it,:,:,:], z_theta)
                 print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating lcl...'
-                lcl_var[it-it_start,:,:] = lcl(theta_nc.variables[temp_key][it,0,:,:]*1.,theta_nc.variables[q_key][it,0,:,:]*1., pres_nc.variables[pres_key][it,:,:,:]*1., z_theta)
+                if not l_spin_up:
+                    lcl_var[it-it_start,:,:] = lcl(theta_nc.variables[temp_key][it,0,:,:]*1.,theta_nc.variables[q_key][it,0,:,:]*1., pres_nc.variables[pres_key][it,:,:,:]*1., z_theta)
+                else:
+                    pressure = interpolate.interp1d(x = z_rho, y = pres_nc.variables[pres_key1][it,:,:,:], fill_value = 'extrapolate', axis = 0)(z_theta)
+                    temperature = PTtoTemp(theta_nc.variables[theta_key][it,0,:,:]*1., pressure[0,:,:], t_units = 'K', p_units = 'Pa')
+                    lcl_var[it-it_start,:,:] = lcl(temperature,mr_nc.variables[q_key][it,0,:,:]*1., pressure, z_theta)
                 print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating ctz...'
                 ctz_var[it-it_start,:,:] = get_CTZ(mr_nc.variables[mcl_key][it,:,:,:], z_theta)
             # close the new netcdf
@@ -127,7 +142,7 @@ for path in paths:
         lcl_data = zi_lcl.variables[lcl_key][:]
         zi_lcl.close()
 
-        if hour == '00':
+        if hour == hours[0]:
             print '[' + dt.now().strftime("%H:%M:%S") + '] This is the first time chunk, initialise the time series arrays'
             zi0_ts = np.zeros(1)
             zi1_ts = np.zeros(1)
@@ -140,7 +155,7 @@ for path in paths:
 
     # cloud cover and liquid water path stuff
     print '[' + dt.now().strftime("%H:%M:%S") + '] Opening lwp netCDF...'
-    lwp_nc = Dataset('lwp_00.nc', 'r')
+    lwp_nc = Dataset(path + 'lwp_00.nc', 'r')
     lwp_key   = 'STASH_m01s30i405'
 
     print '[' + dt.now().strftime("%H:%M:%S") + '] Creating the mean lwp and cloud cover time series...'
@@ -189,7 +204,7 @@ for path in paths:
     ax2.set_xlabel('Time (hours)')
 
     fig.tight_layout()
-    plt.savefig('../zi_lcl_cc_lwp_exp0'+ str(paths.index(path)) + '.png', dpi = 150)
+    plt.savefig('../zi_lcl_cc_lwp_' + ID + '.png', dpi = 150)
     plt.close('all')
 
 

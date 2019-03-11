@@ -21,20 +21,21 @@ from SkewT_archer import getDew, PTtoTemp, getQ, Rd, cpd, g
 l_verbose = True
 
 # Toggle thermodynamics
-l_thermodynamics = False
+l_thermodynamics = 1
 
 # Toggle dynamics
-l_dynamics = False
+l_dynamics = 1
 
 # Toggle surface fluxes
-l_fluxes = True
+l_fluxes = 0
 
 # file ID
 ID = 'Control'
+#ID = 'U05'
 
 # Change the path to the data
-data_path = '/nerc/n02/n02/xb899100/CloudTrail/Spin-up_control/'
-#data_path = '/work/n02/n02/xb899100/cylc-run/u-bg670/share/data/history/'
+data_path = '/nerc/n02/n02/xb899100/CloudTrail/Control_Spinup/'
+#data_path = '/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/'
 
 ### Updated from 'temperature_profiles.py' ###
 # Define a list of days to take advantage of regular expression in naming
@@ -152,7 +153,7 @@ if l_thermodynamics:
         my_file.write(str(mv_levels[-1]) + '\n')
         
         # Third namelist entry
-        my_file.write('mv_init_field_type: (21) relative humidity')
+        my_file.write('mv_init_field_type: (21) relative humidity\n')
         
         # Fourth namelist entry
         my_file.write('mv_init_data: ')
@@ -182,21 +183,16 @@ if l_dynamics:
             time_key = [key for key in u_nc.variables.keys() if 'min' in key][0]
             dt_i = u_nc.variables[u_key].shape[0]
             
-            # Initialise arrays for the horizontally averaged wind components
-            u_mean = np.zeros((dt_i*ndays, z_rho.shape[0]))
-            v_mean = np.zeros_like(u_mean)
-            times = np.zeros(dt_i*ndays) # create a time dimension
-            
             # populate our uwinds, vwinds, and time dimension with data from day 01
             zi = np.nanmean(Dataset(data_path + 'zi_' + day + '.nc', 'r').variables[zi0_key][:], axis = (1,2))
-            u_mean[:dt_i,:] = np.nanmean(u_nc.variables[u_key][:], axis = (2, 3))
-            v_mean[:dt_i,:] = np.nanmean(v_nc.variables[v_key][:], axis = (2, 3))
-            times[:dt_i]    = u_nc.variables[time_key][:]
+            u_mean = np.nanmean(u_nc.variables[u_key][:], axis = (2, 3))
+            v_mean = np.nanmean(v_nc.variables[v_key][:], axis = (2, 3))
+            times  = u_nc.variables[time_key][:]
         else:
             zi = np.concatenate((zi, np.nanmean(Dataset(data_path + 'zi_' + day + '.nc', 'r').variables[zi0_key][:], axis = (1,2))), axis = 0)
-            u_mean[dt_i*days.index(day):dt_i*(days.index(day)+1),:] = np.nanmean(u_nc.variables[u_key][:], axis = (2, 3))
-            v_mean[dt_i*days.index(day):dt_i*(days.index(day)+1),:] = np.nanmean(v_nc.variables[v_key][:], axis = (2, 3))
-            times[dt_i*days.index(day):dt_i*(days.index(day)+1)] = u_nc.variables[time_key][:]
+            u_mean = np.concatenate((u_mean, np.nanmean(u_nc.variables[u_key][:], axis = (2, 3))), axis = 0)
+            v_mean = np.concatenate((v_mean, np.nanmean(v_nc.variables[v_key][:], axis = (2, 3))), axis = 0)
+            times  = np.concatenate((times, u_nc.variables[time_key][:]), axis = 0)
             
         u_nc.close()
         v_nc.close()
@@ -205,51 +201,26 @@ if l_dynamics:
     # Focus alterations to the well-mixed layer
 
     #<------------------Geostrophic Forcing Needs to be Changed------------------->#
-    u_g_z = np.array([0, 9000, 15000, 40000])
+    u_g_z = np.array([0., 9000., 15000., 40000.])
     u_g = np.array([-10., -10., 0., 0.])
-    u_g_interpolated = interpolate.interp1d(u_g_z*1000., u_g, fill_value = 'extrapolate')(z_rho)
+    u_g_interpolated = interpolate.interp1d(u_g_z, u_g, fill_value = 'extrapolate')(z_rho)
     v_g_interpolated = np.zeros_like(z_rho)
     #<---------------------------------------------------------------------------->#
 
     # Initialise the balanced wind arrays
+    print len(zi)
+    print u_mean.shape[0]
     target_zi  = np.mean(zi[-4*dt_i:])
-    u_balanced = np.nanmean([interpolate.interp1d(z_rho/zi[timestep], u_mean[timestep,:], fill_value = 'extrapolate')(z_rho/target_zi) for timestep in xrange(-4*dt_i, u_mean.shape[0])], axis = 0)
-    v_balanced = np.nanmean([interpolate.interp1d(z_rho/zi[timestep], v_mean[timestep,:], fill_value = 'extrapolate')(z_rho/target_zi) for timestep in xrange(-4*dt_i, v_mean.shape[0])], axis = 0)
-
-    #u_balanced = np.zeros_like(z)
-    #v_balanced = np.zeros_like(z)
-    #
-    #count = 0
-    #for timestep in xrange(-4*dt_i, u_mean.shape[0]):
-    #    u_balanced += interpolate.interp1d(z/zi[timestep], u_mean[timestep,:], fill_value = 'extrapolate')(z/target_zi)
-    #    v_balanced += interpolate.interp1d(z/zi[timestep], v_mean[timestep,:], fill_value = 'extrapolate')(z/target_zi)
-    #    count += 1.
-    #u_balanced /= count
-    #v_balanced /= count
+    u_balanced = np.nanmean([interpolate.interp1d(z_rho/zi[timestep], u_mean[timestep+1,:], fill_value = 'extrapolate')(z_rho/target_zi) for timestep in xrange(-4*dt_i, u_mean.shape[0]-1)], axis = 0)
+    v_balanced = np.nanmean([interpolate.interp1d(z_rho/zi[timestep], v_mean[timestep+1,:], fill_value = 'extrapolate')(z_rho/target_zi) for timestep in xrange(-4*dt_i, v_mean.shape[0]-1)], axis = 0)
 
     if l_verbose: print 'Weighting winds by boundary layer depth'
     z_balanced = z_rho*1.
-
+    
+    ### Blended transition from mean in the boundary layer to geostrophic wind above ###
     factor = z_rho/target_zi
     u_balanced_new = np.array([u_balanced[k] if factor[k] < 1.0 else (factor[k])*u_g_interpolated[k] + (1. - factor[k])*u_balanced[k] if factor[k] < 2.0 else u_g_interpolated[k] for k in xrange(len(z_rho))])
     v_balanced_new = np.array([v_balanced[k] if factor[k] < 1.0 else (factor[k])*v_g_interpolated[k] + (1. - factor[k])*v_balanced[k] if factor[k] < 2.0 else v_g_interpolated[k] for k in xrange(len(z_rho))])
-
-    #u_balanced_new = np.zeros_like(z)
-    #v_balanced_new = np.zeros_like(z)
-
-    # only change below the boundary layer
-    #for k in xrange(len(z)):
-    #    factor = z[k]/target_zi
-    #    if factor < 1.0:
-    #        u_balanced_new[k] = u_balanced[k]
-    #        v_balanced_new[k] = v_balanced[k]
-    #    elif factor < 2.0:
-    #        factor = factor - 1.
-    #        u_balanced_new[k] = factor*u_g_interpolated[k] + (1. - factor)*u_balanced[k]
-    #        v_balanced_new[k] = factor*v_g_interpolated[k] + (1. - factor)*v_balanced[k] 
-    #    else:
-    #        u_balanced_new[k] = u_g_interpolated[k]
-    #        v_balanced_new[k] = v_g_interpolated[k]
 
     ### Minimize required points to reproduce the profiles using the RDP function ###
     # Create a well-reproduces u-profile

@@ -17,7 +17,8 @@ def main(path):
     """
 
     # Use the naming convention for the input files
-    hours = ["{0:02d}".format(h) for h in xrange(0, 24, 3)]
+    #hours = ["{0:02d}".format(h) for h in xrange(0, 24, 3)]
+    hours = ["{0:02d}".format(d) for d in xrange(1, 11)] # days for the spinup simulations
     u_key = u'STASH_m01s00i002'
     v_key = u'STASH_m01s00i003'
     w_key = u'STASH_m01s00i150'
@@ -95,9 +96,11 @@ def main(path):
         
         print '[' + dt.now().strftime("%H:%M:%S") + '] Regridding hour ' + hour + ' complete.'
 
-paths = ['/work/n02/n02/xb899100/cylc-run/u-bg113/share/data/history/']
-#['/work/n02/n02/xb899100/cylc-run/u-bd527/share/data/history/',
-# '/work/n02/n02/xb899100/cylc-run/u-bg023/share/data/history/',
+exp01_path   = '/work/n02/n02/xb899100/cylc-run/u-bg023/share/data/history/'
+exp02_path   = '/work/n02/n02/xb899100/cylc-run/u-bg113/share/data/history/'
+control_path = '/work/n02/n02/xb899100/cylc-run/u-bd527/share/data/history/'
+U05_spinup_path  = '/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/'
+paths        = ['/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/']
          
 
 for path in paths:
