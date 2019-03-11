@@ -12,8 +12,8 @@ This is to highlight when the spin-up simulation nears a quasi-equilibrium state
 """
 
 days = ["{0:02d}".format(day) for day in xrange(1, 11)]
-paths = {'control' : '/nerc/n02/n02/xb899100/CloudTrail/Spin-up_control/',
-         'U05' : '/work/n02/n02/xb899100/u-bg670/share/data/history/'}
+#paths = {'control' : '/nerc/n02/n02/xb899100/CloudTrail/Control_Spinup/'}
+paths = {'U05'     : '/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/'}
 
 # Define keys for variables in our netCDF
 u_key     = 'STASH_m01s00i002' # u_DD
