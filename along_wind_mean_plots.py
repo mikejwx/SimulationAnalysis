@@ -9,7 +9,7 @@ See Kirshbaum and Fairman (2015) figure 9(b) for inspiration
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-#plt.switch_backend('agg')
+plt.switch_backend('agg')
 from netCDF4 import Dataset
 from analysis_tools import bilinear_interpolation, get_cs_coords, transform_winds, send_email
 import os
@@ -76,14 +76,14 @@ x_cs, y_cs = get_cs_coords(x_c, y_c, wind_dir_0, X, Y, h = h)
 print '[' + dt.now().strftime('%H:%M:%S') + '] Along-wind cross section ready.'
 # convert island radius and along wind distance from m into km
 R_i /= 1000.
-R = -np.array([np.round(x, 0) for x in np.sign(x_cs - x_c)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)]) - R_i
+R = -np.array([np.round(x, 0) for x in np.sign(x_cs - x_c)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)]) - R_i*1000.
 
 print '[' + dt.now().strftime('%H:%M:%S') + '] Defining chunks downwind'
 # for each point in the cross section along the flow:
 # only choose points that are within 5km of the exact cross section in 10 km chunks?
 # makes 10 x 10 km squares
-chunk_width  = 5000.
-chunk_length = 10000.
+chunk_width  = 10000.
+chunk_length = 20000.
 res = 100. # the resolution in the chunk_width direction
 chunks_x = {}
 chunks_y = {}
@@ -92,7 +92,7 @@ nchunks = 1#int(np.max(R)/chunk_length - 1)
 
 def get_chunk_coord(iC):
     print 'get_chunk_coord(' + str(iC) + ')'
-    iR = np.where(R == chunk_Rs['chunk_'+str(chunk)][iC])[0][0]
+    iR = np.where(np.min(np.abs(R - chunk_Rs['chunk_'+str(chunk)][iC])) == np.abs(R - chunk_Rs['chunk_'+str(chunk)][iC]))[0][0]
     chunks_x, chunks_y = get_cs_coords(x_cs[iR], y_cs[iR], wind_dir_0 + 90., X, Y, h = res, isPeriodic = True, max_r = chunk_width/2.)
     return chunks_x, chunks_y
 
@@ -124,107 +124,114 @@ s_key     = u'Flow-Parallel'
 n_key     = u'Flow-Perpendicular'
 
 hours = ['09']
-wanted_times = [720.]
-path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
-lwp_nc  = Dataset(path + 'lwp_00.nc', 'r')
-lwp_data = lwp_nc.variables[lwp_key][144,:,:]
-lwp_nc.close()
+wanted_times = [600., 660., 720.]
 
-my_cmap = mpl.cm.get_cmap('Greys')
+IDs = ['Control', 'H125', 'H375']
+paths = ['/nerc/n02/n02/xb899100/CloudTrail/'+ID+'/' for ID in IDs]
+for exp_idx in xrange(len(paths)):
+    path = paths[exp_idx]
+    ID   = IDs[exp_idx]
+    lwp_nc  = Dataset(path + 'lwp_00.nc', 'r')
+    lwp_data = lwp_nc.variables[lwp_key][144,:,:]
+    lwp_nc.close()
 
-plot_chunk = True
-def interpolateMap(variable):
-    print '[' + dt.now().strftime('%H:%M:%S') + '] inside interpolateMap'
-    return bilinear_interpolation(X, Y, variable, chunks_x[chunk_key].flatten(), chunks_y[chunk_key].flatten(), kind = 2).reshape((len(z), int(chunk_length/h + 1), int(chunk_width/res + 1)))
+    my_cmap = mpl.cm.get_cmap('Greys')
 
-for hour in hours:
-    #send_email(message = 'Starting ' + hour, subject = 'along_wind_mean_plots.py', attachments = [''], isAttach = False)
-    # read in some data 
-    wind_nc = Dataset(path + 'wind_' + hour + '.nc', 'r')
-    bouy_nc = Dataset(path + 'bouy_' + hour + '.nc', 'r')
-    mr_nc   = Dataset(path + 'mr_' + hour + '.nc', 'r')
-    
-    # determine which wanted_times are in this netCDF
-    time_key = [key for key in wind_nc.variables.keys() if 'min' in key][0]
-    times = wind_nc.variables[time_key][:]
-    its = [np.where(wanted_time == times)[0][0] for wanted_time in wanted_times if wanted_time in times]
-    
-    # read the variables
-    print '[' + dt.now().strftime('%H:%M:%S') + '] Reading data from the netCDFs'
-    z     = bouy_nc.variables['thlev_zsea_theta'][:]
-    i_max = np.where(np.abs(z - 3000.) == np.min(np.abs(z - 3000.)))[0][0]
-    z = z[:i_max]
-    
-    # get along-flow (s) and across-flow (n) wind components
-    print '[' + dt.now().strftime('%H:%M:%S') + '] Transforming the winds'
-    for it in its:
-        #send_email(message = 'Starting ' + str(int(times[it])), subject = 'along_wind_mean_plots.py', attachments = [''], isAttach = False)
-        theta = bouy_nc.variables[theta_key][it,:i_max,:,:]
-        w     = wind_nc.variables[w_key][it,:i_max,:,:]
-        mcl   = mr_nc.variables[mcl_key][it,:i_max,:,:]
-        s     = wind_nc.variables[s_key][it,:i_max,:,:]
-        n     = wind_nc.variables[n_key][it,:i_max,:,:]
-        for chunk_key in chunks_x.keys():
-            # interpolate the variables to our chunk coordinates
-            
-            print '[' + dt.now().strftime('%H:%M:%S') + '] Interpolating variables for ' + chunk_key
-            p = Pool(processes=4)
-            theta_chunk, w_chunk, n_chunk, mcl_chunk = p.map(interpolateMap, [theta, w, n, mcl])
-            p.close()
-            p.join()
-            
-            print '[' + dt.now().strftime('%H:%M:%S') + '] Collapsing variable chunks in the along-wind direction'
-            theta_mean = np.mean(theta_chunk, axis = 1)
-            w_mean = np.mean(w_chunk, axis = 1)
-            n_mean = np.mean(n_chunk, axis = 1)
-            mcl_mean = np.mean(mcl_chunk, axis = 1)
-            
-            if plot_chunk:
-                print '[' + dt.now().strftime('%H:%M:%S') + '] Plot where the chunk is'
-                fig = plt.figure()
+    plot_chunk = True
+    def interpolateMap(variable):
+        print '[' + dt.now().strftime('%H:%M:%S') + '] inside interpolateMap'
+        temp = bilinear_interpolation(X, Y, variable, chunks_x[chunk_key].flatten(), chunks_y[chunk_key].flatten(), kind = 2).reshape((len(z), int(chunk_length/h + 1), int(chunk_width/res + 1)))
+        print '[' + dt.now().strftime('%H:%M:%S') + '] exiting interpolateMap'
+        return temp
+
+    for hour in hours:
+        #send_email(message = 'Starting ' + hour, subject = 'along_wind_mean_plots.py', attachments = [''], isAttach = False)
+        # read in some data 
+        wind_nc = Dataset(path + 'wind_' + hour + '.nc', 'r')
+        bouy_nc = Dataset(path + 'bouy_' + hour + '.nc', 'r')
+        mr_nc   = Dataset(path + 'mr_' + hour + '.nc', 'r')
+        
+        # determine which wanted_times are in this netCDF
+        time_key = [key for key in wind_nc.variables.keys() if 'min' in key][0]
+        times = wind_nc.variables[time_key][:]
+        its = [np.where(wanted_time == times)[0][0] for wanted_time in wanted_times if wanted_time in times]
+        
+        # read the variables
+        print '[' + dt.now().strftime('%H:%M:%S') + '] Reading data from the netCDFs'
+        z     = bouy_nc.variables['thlev_zsea_theta'][:]
+        i_max = np.where(np.abs(z - 3000.) == np.min(np.abs(z - 3000.)))[0][0] # Find the index of the level nearest 3000 m
+        z     = z[:i_max] # Clip to just the lowest 3000 m
+        
+        # get along-flow (s) and across-flow (n) wind components
+        print '[' + dt.now().strftime('%H:%M:%S') + '] Transforming the winds'
+        for it in its:
+            #send_email(message = 'Starting ' + str(int(times[it])), subject = 'along_wind_mean_plots.py', attachments = [''], isAttach = False)
+            theta = bouy_nc.variables[theta_key][it,:i_max,:,:]
+            w     = wind_nc.variables[w_key][it,:i_max,:,:]
+            mcl   = mr_nc.variables[mcl_key][it,:i_max,:,:]
+            s     = wind_nc.variables[s_key][it,:i_max,:,:]
+            n     = wind_nc.variables[n_key][it,:i_max,:,:]
+            for chunk_key in chunks_x.keys():
+                # interpolate the variables to our chunk coordinates
+                
+                print '[' + dt.now().strftime('%H:%M:%S') + '] Interpolating variables for ' + chunk_key
+                p = Pool(processes=4)
+                theta_chunk, w_chunk, n_chunk, mcl_chunk = p.map(interpolateMap, [theta, w, n, mcl])
+                p.close()
+                p.join()
+                
+                print '[' + dt.now().strftime('%H:%M:%S') + '] Collapsing variable chunks in the along-wind direction'
+                theta_mean = np.mean(theta_chunk, axis = 1)
+                w_mean = np.mean(w_chunk, axis = 1)
+                n_mean = np.mean(n_chunk, axis = 1)
+                mcl_mean = np.mean(mcl_chunk, axis = 1)
+                
+                if plot_chunk:
+                    print '[' + dt.now().strftime('%H:%M:%S') + '] Plot where the chunk is'
+                    fig = plt.figure(tight_layout = True, figsize=(15, 5))
+                    ax = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
+                    LWP_plt = ax.contourf(X/1000., Y/1000., lwp_data[:]*1000., colors = my_cmap(np.arange(0, 9.)/8.), levels = [0., 10., 20., 50., 100., 200., 300., 400., 500., 600.], extend = 'max')
+                    fig.colorbar(LWP_plt, ax = ax, label = r'LWP (g m$^{-2}$)')
+                    ax.contour(X/1000., Y/1000., lsm, colors = ['k'], linewidths = 2)
+                    ax.plot([chunks_x[chunk_key][0,0], chunks_x[chunk_key][0,-1], chunks_x[chunk_key][-1, -1], chunks_x[chunk_key][-1,0], chunks_x[chunk_key][0,0]], [chunks_y[chunk_key][0,0], chunks_y[chunk_key][0,-1], chunks_y[chunk_key][-1, -1], chunks_y[chunk_key][-1,0], chunks_y[chunk_key][0,0]], 'r')
+                    ax.set_xlabel('x (km)')
+                    ax.set_ylabel('y (km)')
+                    plt.savefig('../' + chunk_key + '.png', dpi = 150)
+                print '[' + dt.now().strftime('%H:%M:%S') + '] Plot along-wind chunk mean following KF15'
+                y_p = np.arange(-chunk_width/2., chunk_width/2 + 0.1, res)/1000.
+                fig = plt.figure(tight_layout = True, figsize = (20,6))
                 ax = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
-                LWP_plt = ax.contourf(X, Y, lwp_data[:]*1000., colors = my_cmap(np.arange(0, 9.)/8.), levels = [0., 10., 20., 50., 100., 200., 300., 400., 500., 600.], extend = 'max')
-                fig.colorbar(LWP_plt, ax = ax, label = r'LWP (g m$^{-2}$)')
-                ax.contour(X, Y, lsm, colors = ['k'], linewidths = 2)
-                ax.plot([chunks_x[chunk_key][0,0], chunks_x[chunk_key][0,-1], chunks_x[chunk_key][-1, -1], chunks_x[chunk_key][-1,0], chunks_x[chunk_key][0,0]], [chunks_y[chunk_key][0,0], chunks_y[chunk_key][0,-1], chunks_y[chunk_key][-1, -1], chunks_y[chunk_key][-1,0], chunks_y[chunk_key][0,0]], 'r')
-                plt.savefig('../' + chunk_key + '.png', dpi = 150)
-                plt.show()
-            print '[' + dt.now().strftime('%H:%M:%S') + '] Plot along-wind chunk mean following KF15'
-            y_p = np.arange(-chunk_width/2., chunk_width/2 + 0.1, res)/1000.
-            fig = plt.figure()
-            ax = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
-            # potential temperature
-            tc = ax.contour(y_p, z/1000., theta_mean, colors = ['k'], levels = range(298, 310), linewidths = [2])
-            ax.clabel(tc, inline=1, fmt= '%1d')
-            # vertical velocity
-            ax.contourf(y_p, z/1000., w_mean, cmap = 'bwr', vmin = -2., vmax = 2., levels = [x for x in np.arange(-1.0, 2.01, 0.2) if x != 0], extend = 'max')
-            ax.contour(y_p, z/1000., w_mean, colors = ['k'], levels = [x for x in np.arange(-1.0, 2.01, 0.2) if x != 0])
-            # cloud liquid
-            #cld = ax.contourf(y_p, z/1000., mcl_mean*1000., cmap = 'Greys', levels = np.arange(0.05, 0.56, 0.05))
-            #fig.colorbar(cld, ax = ax, label = r'm$_{cl}$ (g kg$^{-1}$)')
-            # winds
-            q = ax.quiver(y_p, z[::3]/1000., n_mean[::3,:], w_mean[::3,:], scale = 50., width = 0.002)
-            ax.quiverkey(q, X = 1.1, Y = -0.1, U = 1, label = '1 m/s', labelpos = 'E')
-            ax.set_xlabel("y' (km)")
-            ax.set_ylabel('Height (km)')
-            ax.set_title(str(chunk_length*chunks_x.keys().index(chunk_key)/1000) + ' to ' + str(chunk_length*(chunks_x.keys().index(chunk_key)+1)/1000) + ' km downwind of island, T+' + "{0:04d} mins".format(int(times[it])))
-            plt.savefig('../along_wind_mean_' + chunk_key + "_T_{0:04d}".format(int(times[it])) + '.png', dpi = 100)
-            plt.show()
-            
-            print '[' + dt.now().strftime('%H:%M:%S') + '] Plot along-wind chunk mean of potential temperature anomalies'
-            mean_theta = np.nanmean(theta, axis = (1, 2))
-            theta_anom = np.transpose(np.array([theta_mean[ :,iy] - mean_theta for iy in xrange(theta_mean.shape[1])]))
-            fig = plt.figure(tight_layout = True)
-            ax = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
-            anom_plt = ax.contourf(y_p, z/1000., theta_anom, cmap = 'bwr', levels = [x for x in np.arange(-2., 2.1, 0.25) if x != 0], extend = 'both')
-            fig.colorbar(anom_plt, ax = ax, ticks = np.arange(-2, 2.1, 0.25), label = '$\\theta^{\prime}$ (K)')
-            q = ax.quiver(y_p, z[::3]/1000., n_mean[::3,:], w_mean[::3,:], scale = 50., width = 0.002)
-            ax.quiverkey(q, X = 1.1, Y = -0.1, U = 1, label = '1 m/s', labelpos = 'E')
-            ax.set_ylabel('Height (km)')
-            ax.set_xlabel('y$^{\prime}$ (km)')
-            ax.set_title('$\\theta$ anomaly ' + str(chunk_length*chunks_x.keys().index(chunk_key)/1000) + ' to ' + str(chunk_length*(chunks_x.keys().index(chunk_key)+1)/1000) + ' km downwind of island, T+' + "{0:04d} mins".format(int(times[it])))
-            plt.show()
-
-        plot_chunk = False
-
+                # potential temperature
+                tc = ax.contour(y_p, z/1000., theta_mean, colors = ['k'], levels = range(298, 310), linewidths = [2])
+                ax.clabel(tc, inline=1, fmt= '%1d')
+                # vertical velocity
+                ax.contourf(y_p, z/1000., w_mean, cmap = 'bwr', vmin = -2., vmax = 2., levels = [x for x in np.arange(-1.0, 2.01, 0.2) if round(x,1) != 0], extend = 'max')
+                ax.contour(y_p, z/1000., w_mean, colors = ['k'], levels = [x for x in np.arange(-1.0, 2.01, 0.2) if round(x,1) != 0])
+                # cloud liquid
+                ax.contourf(y_p, z/1000., mcl_mean, levels = [0.01e-3, 1e10], hatches = ['////'], colors = 'none')
+                # winds
+                q = ax.quiver(y_p, z[::3]/1000., n_mean[::3,:], w_mean[::3,:], scale = 50., width = 0.001)
+                ax.quiverkey(q, X = 0.9, Y = -0.1, U = 2, label = '2 m/s', labelpos = 'E')
+                ax.set_xlabel("y' (km)")
+                ax.set_ylabel('Height (km)')
+                ax.set_title(str(chunk_length*chunks_x.keys().index(chunk_key)/1000) + ' to ' + str(chunk_length*(chunks_x.keys().index(chunk_key)+1)/1000) + ' km downwind of island, T+' + "{0:04d} mins".format(int(times[it])))
+                plt.savefig('../along_wind_mean_' + ID + "_T+{0:04d}".format(int(times[it])) + '.png', dpi = 150)
+                
+                print '[' + dt.now().strftime('%H:%M:%S') + '] Plot along-wind chunk mean of potential temperature anomalies'
+                mean_theta = np.nanmean(theta, axis = (1, 2))
+                theta_anom = np.transpose(np.array([theta_mean[ :,iy] - mean_theta for iy in xrange(theta_mean.shape[1])]))
+                fig = plt.figure(tight_layout = True,figsize=(20,6))
+                ax = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
+                anom_plt = ax.contourf(y_p, z/1000., theta_anom, cmap = 'bwr', levels = [x for x in np.arange(-1., 1.1, 0.1) if round(x,1) != 0], extend = 'both')
+                fig.colorbar(anom_plt, ax = ax, ticks = np.arange(-1, 1.1, 0.1), label = '$\\theta^{\prime}$ (K)')
+                q = ax.quiver(y_p, z[::3]/1000., n_mean[::3,:], w_mean[::3,:], scale = 50., width = 0.001)
+                ax.quiverkey(q, X = 0.9, Y = -0.1, U = 2, label = '2 m/s', labelpos = 'E')
+                ax.contourf(y_p, z/1000., mcl_mean, levels = [0.01e-3, 1e10], hatches = ['////'], colors = 'none')
+                ax.set_ylabel('Height (km)')
+                ax.set_xlabel('y$^{\prime}$ (km)')
+                ax.set_title('$\\theta^{\prime}$  ' + str(chunk_length*chunks_x.keys().index(chunk_key)/1000) + ' to ' + str(chunk_length*(chunks_x.keys().index(chunk_key)+1)/1000) + ' km downwind of island, T+' + "{0:04d} mins".format(int(times[it])))
+                plt.savefig('../along_wind_mean_warm_plume' + ID + "_T+{0:04d}".format(int(times[it])) + '.png', dpi = 150)
+                
+            plot_chunk = False
+    print 'Complete.'
 
