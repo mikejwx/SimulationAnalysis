@@ -430,9 +430,11 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
     """
     import numpy as np
     # make use of the bi-periodic boundary conditions to not truncate at boundaries
-    x_in_p = np.concatenate((x_in-np.max(x_in), x_in, x_in+np.max(x_in)), axis = 1)
+    dx = x_in[0,1] - x_in[0,0]
+    dy = y_in[1,0] - y_in[0,0]
+    x_in_p = np.concatenate((x_in-np.max(x_in)-dx, x_in, x_in+np.max(x_in)+dx), axis = 1)
     x_in_p = np.concatenate((x_in_p, x_in_p, x_in_p), axis = 0)
-    y_in_p = np.concatenate((y_in-np.max(y_in), y_in, y_in+np.max(y_in)), axis = 0)
+    y_in_p = np.concatenate((y_in-np.max(y_in)-dy, y_in, y_in+np.max(y_in)+dy), axis = 0)
     y_in_p = np.concatenate((y_in_p, y_in_p, y_in_p), axis = 1)
     # Initialise our output array
     z_out = np.zeros((z_in0.shape[0], len(x_out)))
@@ -461,47 +463,31 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
             z_out[:,i] /= w
         elif kind == 2:
             # Find the nearest point
-            iy, ix = np.where(r == np.min(r))
-            iy = iy[0]%z_in0.shape[1]
-            ix = ix[0]%z_in0.shape[2]
-            z_in = z_in0[:,(iy-1):(iy+2),(ix-1):(ix+2)]
-            # Determine which quadrant (i.e. up and left, up and right, down and
-            # right, or down and left) this point is with respect to the output 
-            # point
-            dx = x_in[iy, ix] - x_out[i] # if +ve, input point is to the right
-            dy = y_in[iy, ix] - y_out[i] # if +ve, input point is up
-            if dx > 0:
-                # nearest input point is to the right
-                if dy > 0:
-                    # nearest input point is up
-                    z_out_up = (z_in[:,1,1] - z_in[:,1,0])*(x_out[i] - x_in[iy,ix-1])/(x_in[iy,ix] - x_in[iy,ix-1]) + z_in[:,1,0]
-                    z_out_down = (z_in[:,0,1] - z_in[:,0,0])*(x_out[i] - x_in[iy-1,ix-1])/(x_in[iy-1,ix] - x_in[iy-1,ix-1]) + z_in[:,0,0]
-                    y_in_up = (y_in[iy,ix] - y_in[iy,ix-1])*(x_out[i] - x_in[iy,ix-1])/(x_in[iy,ix] - x_in[iy,ix-1]) + y_in[iy,ix-1]
-                    y_in_down = (y_in[iy-1,ix] - y_in[iy-1,ix-1])*(x_out[i] - x_in[iy-1,ix-1])/(x_in[iy-1,ix] - x_in[iy-1,ix-1]) + y_in[iy-1,ix-1]
-                    z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
-                elif dy <= 0:
-                    # nearest input point is down
-                    z_out_up = (z_in[:,2,1] - z_in[:,2,0])*(x_out[i] - x_in[iy+1,ix-1])/(x_in[iy+1,ix] - x_in[iy+1,ix-1]) + z_in[:,2,0]
-                    z_out_down = (z_in[:,1,1] - z_in[:,1,0])*(x_out[i] - x_in[iy,ix-1])/(x_in[iy,ix] - x_in[iy,ix-1]) + z_in[:,1,0]
-                    y_in_up = (y_in[iy+1,ix] - y_in[iy+1,ix-1])*(x_out[i] - x_in[iy+1,ix-1])/(x_in[iy+1,ix] - x_in[iy+1,ix-1]) + y_in[iy+1,ix-1]
-                    y_in_down = (y_in[iy,ix] - y_in[iy,ix-1])*(x_out[i] - x_in[iy,ix-1])/(x_in[iy,ix] - x_in[iy,ix-1]) + y_in[iy,ix-1]
-                    z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
-            elif dx <= 0:
-                # nearest input point is to the left
-                if dy > 0:
-                    # nearest input point is up
-                    z_out_up = (z_in[:,1,2] - z_in[:,1,1])*(x_out[i] - x_in[iy,ix])/(x_in[iy,ix+1] - x_in[iy,ix]) + z_in[:,1,1]
-                    z_out_down = (z_in[:,0,2] - z_in[:,0,1])*(x_out[i] - x_in[iy-1,ix])/(x_in[iy-1,ix+1] - x_in[iy-1,ix]) + z_in[:,0,1]
-                    y_in_up = (y_in[iy,ix+1] - y_in[iy,ix])*(x_out[i] - x_in[iy,ix])/(x_in[iy,ix+1] - x_in[iy,ix]) + y_in[iy,ix]
-                    y_in_down = (y_in[iy-1,ix+1] - y_in[iy-1,ix])*(x_out[i] - x_in[iy-1,ix])/(x_in[iy-1,ix+1] - x_in[iy-1,ix]) + y_in[iy-1,ix]
-                    z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
-                elif dy <= 0:
-                    # nearest input point is down
-                    z_out_up = (z_in[:,2,2] - z_in[:,2,1])*(x_out[i] - x_in[iy+1,ix])/(x_in[iy+1,ix+1] - x_in[iy+1,ix]) + z_in[:,2,1]
-                    z_out_down = (z_in[:,1,2] - z_in[:,1,1])*(x_out[i] - x_in[iy,ix])/(x_in[iy,ix+1] - x_in[iy,ix]) + z_in[:,1,1]
-                    y_in_up = (y_in[iy+1,ix+1] - y_in[iy+1,ix])*(x_out[i] - x_in[iy+1,ix])/(x_in[iy+1,ix+1] - x_in[iy+1,ix]) + y_in[iy+1,ix]
-                    y_in_down = (y_in[iy,ix+1] - y_in[iy,ix])*(x_out[i] - x_in[iy,ix])/(x_in[iy,ix+1] - x_in[iy,ix]) + y_in[iy,ix]
-                    z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
+            iy0, ix0 = np.where(r == np.min(r))
+            Dx = x_out[i] - x_in_p[iy, ix] # if +ve, input point is to the right
+            Dy = y_out[i] - y_in_p[iy, ix] # if +ve, input point is up
+            iy = iy0[0]%z_in0.shape[1]
+            ix = ix0[0]%z_in0.shape[2]
+            iy0 = iy0[0]
+            ix0 = ix0[0]
+            if Dx < 0:
+                # nearest point is to the right, move one to the left
+                ix -= 1
+            
+            if Dy < 0:
+                # nearest point is above, move one down
+                iy -= 1
+            
+            z_in = np.zeros((z_in0.shape[0], 3, 3))
+            for J in xrange(-1,2):
+                for I in xrange(-1,2):
+                    z_in[:,J,I] = z_in0[:,(iy+J)%z_in0.shape[1],(ix+I)%z_in0.shape[2]]
+            # bilinearly interpolate
+            z_out_up = (z_in[:,1,1] - z_in[:,1,0])*(x_out[i] - x_in_p[iy0,ix0-1])/(x_in_p[iy0,ix0] - x_in_p[iy0,ix0-1]) + z_in[:,1,0]
+            z_out_down = (z_in[:,0,1] - z_in[:,0,0])*(x_out[i] - x_in_p[iy0-1,ix0-1])/(x_in_p[iy0-1,ix0] - x_in_p[iy0-1,ix0-1]) + z_in[:,0,0]
+            y_in_up = (y_in_p[iy0,ix0] - y_in_p[iy0,ix0-1])*(x_out[i] - x_in_p[iy0,ix0-1])/(x_in_p[iy0,ix0] - x_in_p[iy0,ix0-1]) + y_in_p[iy0,ix0-1]
+            y_in_down = (y_in_p[iy0-1,ix0] - y_in_p[iy0-1,ix0-1])*(x_out[i] - x_in_p[iy0-1,ix0-1])/(x_in_p[iy0-1,ix0] - x_in_p[iy0-1,ix0-1]) + y_in_p[iy0-1,ix0-1]
+            z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
         elif kind == 3:
             z_in = z_in0*1.
             iy, ix = np.where(r < d)
