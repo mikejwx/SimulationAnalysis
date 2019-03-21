@@ -822,14 +822,7 @@ def plotSkewT(temp, t_dew, p, u = np.array([-999]), v = np.array([-999]),
             temp[i] -= 273.15
         if (np.min(t_dew[i]) > 0) and (np.max(t_dew[i] > 100.)):
             t_dew[i] -= 273.15
-        # plot the temperature
-        #print 'Plotting the temperature profile'
-        #print 'Length temp[i] = ' + str(len(temp[i]))
-        #print 'Length p[i] = ' + str(len(p[i]))
         ax.semilogy(skew(temp[i], p[i]), p[i], color = temp_col[i], lw = 2)
-        # plot the dew point
-        #print 'Plotting the dewpoint profile'
-        #print 'Length t_dew[i] = ' + str(len(temp[i]))
         ax.semilogy(skew(t_dew[i], p[i]), p[i], color = dew_col[i], lw = 2)
         if CAPE:
             my_q = getQ(t_dew[i]+273.15, np.zeros_like(t_dew[i])+100., p[i])
