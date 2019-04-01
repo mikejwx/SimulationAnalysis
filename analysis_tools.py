@@ -464,8 +464,8 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
         elif kind == 2:
             # Find the nearest point
             iy0, ix0 = np.where(r == np.min(r))
-            Dx = x_out[i] - x_in_p[iy, ix] # if +ve, input point is to the right
-            Dy = y_out[i] - y_in_p[iy, ix] # if +ve, input point is up
+            Dx = x_out[i] - x_in_p[iy0, ix0] # if +ve, input point is to the right
+            Dy = y_out[i] - y_in_p[iy0, ix0] # if +ve, input point is up
             iy = iy0[0]%z_in0.shape[1]
             ix = ix0[0]%z_in0.shape[2]
             iy0 = iy0[0]
