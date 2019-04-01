@@ -21,21 +21,23 @@ from SkewT_archer import getDew, PTtoTemp, getQ, Rd, cpd, g
 l_verbose = True
 
 # Toggle thermodynamics
-l_thermodynamics = 1
+l_thermodynamics = 0
 
 # Toggle dynamics
-l_dynamics = 1
+l_dynamics = 0
 
 # Toggle surface fluxes
-l_fluxes = 0
+l_fluxes = 1
 
 # file ID
-ID = 'Control'
+#ID = 'Control'
 #ID = 'U05'
+ID = 'U05v2'
 
 # Change the path to the data
-data_path = '/nerc/n02/n02/xb899100/CloudTrail/Control_Spinup/'
+#data_path = '/nerc/n02/n02/xb899100/CloudTrail/Control_Spinup/'
 #data_path = '/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/'
+data_path = '/work/n02/n02/xb899100/cylc-run/u-bg952/share/data/history/'
 
 ### Updated from 'temperature_profiles.py' ###
 # Define a list of days to take advantage of regular expression in naming
