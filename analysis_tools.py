@@ -407,8 +407,8 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
     Performs bilinear interpolation on a given 2D array, z_in.
     ----------------------------------------------------------------------------
     INPUT:
-    x_in = 2D array of x-coordinates, input
-    y_in = 2D array of y-coordinates, input
+    x_in = regular 2D array of x-coordinates, input
+    y_in = regular 2D array of y-coordinates, input
     z_in = 3D array of data points, input z_in[nz, ny, nx]
 
     x_out = 1D array of x-coordinates to be interpolated onto
@@ -430,20 +430,18 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
     """
     import numpy as np
     # make use of the bi-periodic boundary conditions to not truncate at boundaries
-    dx = x_in[0,1] - x_in[0,0]
-    dy = y_in[1,0] - y_in[0,0]
-    x_in_p = np.concatenate((x_in-np.max(x_in)-dx, x_in, x_in+np.max(x_in)+dx), axis = 1)
-    x_in_p = np.concatenate((x_in_p, x_in_p, x_in_p), axis = 0)
-    y_in_p = np.concatenate((y_in-np.max(y_in)-dy, y_in, y_in+np.max(y_in)+dy), axis = 0)
-    y_in_p = np.concatenate((y_in_p, y_in_p, y_in_p), axis = 1)
+    dx, dy = [x_in[0,1] - x_in[0,0], y_in[1,0] - y_in[0,0]]
+    x_max = np.max(x_in) + dx
+    y_max = np.max(y_in) + dy
+    x_out = x_out%x_max
+    y_out = y_out%y_max
+    
     # Initialise our output array
     z_out = np.zeros((z_in0.shape[0], len(x_out)))
-    
     # For each point to be interpolated onto
     for i in xrange(len(x_out)):
-        #print 'bilinearInterpolation [' + str(i) +']'
         # Find the distance to the input data coordinates
-        r = np.sqrt((x_in_p - x_out[i])**2 + (y_in_p - y_out[i])**2)
+        r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
         
         if kind == 0:
             z_in = z_in0*1.
@@ -462,32 +460,15 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
                 z_out[:,i] += (1./r[iy[j], ix[j]]**p)*z_in[:,iy[j]%z_in.shape[1], ix[j]%z_in.shape[2]]
             z_out[:,i] /= w
         elif kind == 2:
-            # Find the nearest point
+            # Find the nearest points
             iy0, ix0 = np.where(r == np.min(r))
-            Dx = x_out[i] - x_in_p[iy0, ix0] # if +ve, input point is to the right
-            Dy = y_out[i] - y_in_p[iy0, ix0] # if +ve, input point is up
-            iy = iy0[0]%z_in0.shape[1]
-            ix = ix0[0]%z_in0.shape[2]
-            iy0 = iy0[0]
-            ix0 = ix0[0]
-            if Dx < 0:
-                # nearest point is to the right, move one to the left
-                ix -= 1
-            
-            if Dy < 0:
-                # nearest point is above, move one down
-                iy -= 1
-            
-            z_in = np.zeros((z_in0.shape[0], 3, 3))
-            for J in xrange(-1,2):
-                for I in xrange(-1,2):
-                    z_in[:,J,I] = z_in0[:,(iy+J)%z_in0.shape[1],(ix+I)%z_in0.shape[2]]
-            # bilinearly interpolate
-            z_out_up = (z_in[:,1,1] - z_in[:,1,0])*(x_out[i] - x_in_p[iy0,ix0-1])/(x_in_p[iy0,ix0] - x_in_p[iy0,ix0-1]) + z_in[:,1,0]
-            z_out_down = (z_in[:,0,1] - z_in[:,0,0])*(x_out[i] - x_in_p[iy0-1,ix0-1])/(x_in_p[iy0-1,ix0] - x_in_p[iy0-1,ix0-1]) + z_in[:,0,0]
-            y_in_up = (y_in_p[iy0,ix0] - y_in_p[iy0,ix0-1])*(x_out[i] - x_in_p[iy0,ix0-1])/(x_in_p[iy0,ix0] - x_in_p[iy0,ix0-1]) + y_in_p[iy0,ix0-1]
-            y_in_down = (y_in_p[iy0-1,ix0] - y_in_p[iy0-1,ix0-1])*(x_out[i] - x_in_p[iy0-1,ix0-1])/(x_in_p[iy0-1,ix0] - x_in_p[iy0-1,ix0-1]) + y_in_p[iy0-1,ix0-1]
-            z_out[:,i] = (z_out_up - z_out_down)*(y_out[i] - y_in_down)/(y_in_up - y_in_down) + z_out_down
+            iy0, ix0 = [iy0[0], ix0[0]]
+            # Shift nearest so that our target point is always up and to the right of iy,ix
+            iy = iy0 + np.min([int(np.sign(y_out[i] - y_in[iy0, ix0])), 0])
+            ix = ix0 + np.min([int(np.sign(x_out[i] - x_in[iy0, ix0])), 0])
+            z_top = (z_in0[:,(iy+1)%z_in0.shape[1],(ix+1)%z_in0.shape[2]] - z_in0[:,(iy+1)%z_in0.shape[1],ix])*(x_out[i] - x_in[0,ix])/dx + z_in0[:,(iy+1)%z_in0.shape[1],ix]
+            z_bot = (z_in0[:,iy,(ix+1)%z_in0.shape[2]] - z_in0[:,iy,ix])*(x_out[i] - x_in[0,ix])/dx + z_in0[:,iy,ix]
+            z_out[:,i] = (z_top - z_bot)*(y_out[i]-y_in[iy,0])/dy + z_bot
         elif kind == 3:
             z_in = z_in0*1.
             iy, ix = np.where(r < d)
@@ -495,7 +476,7 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
     
     return z_out
 
-def get_cs_coords(x_c, y_c, direction, x, y, h = 100., isPeriodic = False, max_r = 80000.):
+def get_cs_coords(x_c, y_c, direction, x, y, h = 100., isPeriodic = True, max_r = 80000.):
     """
     Uses an input coordinate (x_c, y_c) and a wind direction (direction) to 
     calculate the coordinates of a line that goes through the input coordinate
@@ -930,10 +911,12 @@ def toComponents(speed, direction):
     return u, v
 
 def fromComponents(u, v, isList = False):
-    "Takes the two horizontal wind components and combines them into a wind"
-    "speed and direction to be returned."
-    "u = the zonal wind component"
-    "v = the meridional wind component"
+    """
+    Takes the two horizontal wind components and combines them into a wind
+    speed and direction to be returned.
+    u = the zonal wind component
+    v = the meridional wind component
+    """
     speed = np.sqrt(np.array(u)**2 + np.array(v)**2)
     if isList:
         direction = np.arcsin(v/speed)*180/np.pi
@@ -1009,6 +992,48 @@ def transform_winds(u, v):
             rotated_dir = wind_direction - mean_dir
             n[it,k,:,:] = wind_speed*np.sin(rotated_dir*np.pi/180.) # cross-wind
             s[it,k,:,:] = wind_speed*np.cos(rotated_dir*np.pi/180.) # along-wind
+            
+    return s, n
+
+def in_plane_winds(u, v, orientation = 90.):
+    """
+    Computes the wind components parallel (s) and perpendicular (n) to a plane 
+    of given orientation. Where orientation = 90.0 degrees, s = u and n = v.
+    
+    These anomalies are  with respect to the domain total horizontal-mean winds
+    at that level.
+    
+    N.B.
+        u and v must be regridded to the same horizontal grid points BEFORE they
+        are passed to this function!
+    ----------------------------------------------------------------------------
+    INPUT:
+        u = u[nt, nz, ny, nx] -> wind component in x-direction
+        v = v[nt, nz, ny, nx] -> wind component in y-direction
+        orientation = angle clockwise from north of the plane. Here, 90.0 deg 
+                      corresponds to s = u, n = v. However, 270.0 deg returns
+                      s = -u, and n = -v.
+    OUTPUT:
+        s = s[nt, nz, ny, nx] -> wind component in direction of mean flow
+        n = n[nt, nz, ny, nx] -> wind component across direction of mean flow
+    """
+    # Init arrays for s and n
+    s = np.zeros_like(u) # along flow
+    n = np.zeros_like(u) # cross flow
+    
+    # For every time step
+    for it in xrange(u.shape[0]):
+        # For every height
+        for k in xrange(u.shape[1]):
+            u_slice = u[it,k,:,:]
+            v_slice = v[it,k,:,:]
+            # Find the mean wind direction
+            wind_speed = np.sqrt(u_slice**2 + v_slice**2)
+            wind_direction = np.where((v_slice >= 0), (np.arctan(u_slice/v_slice)*180./np.pi-180.)%360., (np.arctan(u_slice/v_slice)*180./np.pi)%360.)
+            # Rotate the coordinates by subtracting orientation
+            rotated_dir = (wind_direction - orientation)*np.pi/180.
+            n[it,k,:,:] = wind_speed*np.sin(rotated_dir) # cross-wind
+            s[it,k,:,:] = wind_speed*np.cos(rotated_dir) # along-wind
             
     return s, n
 
