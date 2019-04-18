@@ -77,6 +77,7 @@ def getML_mean(var, z, zi, axis = 0):
     i.e. if var = f(t, z, y, x) axis should be provided as axis = 1
     N.B. if just a single profile, this should be able to pick out the correct 
     ML mean value
+    
     OUTPUT:
     var_ML = the mean of the given variable over the mixed layer depth, zi
     ----------------------------------------------------------------------------
@@ -438,38 +439,46 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
     
     # Initialise our output array
     z_out = np.zeros((z_in0.shape[0], len(x_out)))
-    # For each point to be interpolated onto
-    for i in xrange(len(x_out)):
-        # Find the distance to the input data coordinates
-        r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
-        
-        if kind == 0:
+    
+    # Which kind of interpolation are we doing?
+    if kind == 0:
+        # Nearest Neighbor
+        for i in xrange(len(x_out)):
+            # Find the distance to the input data coordinates
+            r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
             z_in = z_in0*1.
-            # Nearest neighbor approach
             iy, ix = np.where(r == np.min(r))
             z_out[:,i] = z_in[:,iy[0]%z_in.shape[1],ix[0]%z_in.shape[2]]
-        elif kind == 1:
+    
+    elif kind == 1:
+        # Inverse Distance Weighting
+        for i in xrange(len(x_out)):
+            r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
             z_in = z_in0*1.
-            # idw approach
-            # Use all points within 'd' m of x_out, y_out for weighted mean
             iy, ix = np.where(r < d)
             w = 0
-            
             for j in xrange(len(iy)):
                 w += (1./r[iy[j], ix[j]]**p)
                 z_out[:,i] += (1./r[iy[j], ix[j]]**p)*z_in[:,iy[j]%z_in.shape[1], ix[j]%z_in.shape[2]]
             z_out[:,i] /= w
-        elif kind == 2:
+    
+    elif kind == 2:
+        # Bilinear Interpolation
+        for i in xrange(len(x_out)):
+            r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
             # Find the nearest points
-            iy0, ix0 = np.where(r == np.min(r))
-            iy0, ix0 = [iy0[0], ix0[0]]
-            # Shift nearest so that our target point is always up and to the right of iy,ix
+            iy0, ix0 = [i0[0] for i0 in np.where(r == np.min(r))]
+            # Shift nearest so that our target point is always up and to the right of iy, ix
             iy = iy0 + np.min([int(np.sign(y_out[i] - y_in[iy0, ix0])), 0])
             ix = ix0 + np.min([int(np.sign(x_out[i] - x_in[iy0, ix0])), 0])
             z_top = (z_in0[:,(iy+1)%z_in0.shape[1],(ix+1)%z_in0.shape[2]] - z_in0[:,(iy+1)%z_in0.shape[1],ix])*(x_out[i] - x_in[0,ix])/dx + z_in0[:,(iy+1)%z_in0.shape[1],ix]
             z_bot = (z_in0[:,iy,(ix+1)%z_in0.shape[2]] - z_in0[:,iy,ix])*(x_out[i] - x_in[0,ix])/dx + z_in0[:,iy,ix]
             z_out[:,i] = (z_top - z_bot)*(y_out[i]-y_in[iy,0])/dy + z_bot
-        elif kind == 3:
+    
+    elif kind == 3:
+        # Local Operator
+        for i in xrange(len(x_out)):
+            r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
             z_in = z_in0*1.
             iy, ix = np.where(r < d)
             z_out[:,i] = operation(z_in[:,iy%z_in.shape[1],ix%z_in.shape[2]], axis = 1)
