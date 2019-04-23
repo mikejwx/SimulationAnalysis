@@ -15,99 +15,6 @@ def get_swath_coord(iC):
     swath_x, swath_y = get_cs_coords(x_cs[iC], y_cs[iC], orientation_in + 90., X, Y, h = res, isPeriodic = True, max_r = swath_width/2.)
     return swath_x, swath_y
 
-def create_swath_nc(path, nc_in, var_in, orientation_in, swath_width, l_short, nc_out):
-    """
-    Compute the swath along the cloud trail region. This is along the 
-    orientation_in direction.
-    
-    ----------------------------------------------------------------------------
-    INPUT:
-    path = Path to the nc of interest, also the path to which the created nc
-           will be stored.
-    nc_in = This is the part of the input nc name before the hour regular
-            expression, e.g. 'wind'
-    var_in = This is the name of the variable of interest as it is in the input
-             nc. e.g. u'STASH_m01s00i002' for the u-wind component
-    orientation_in = This is usually going to be the mixed-layer-mean wind
-                     direction averaged over the duration of the simulation, and
-                     horizontally averaged over the domain.
-    l_short = logical, changes the expected hours for the simulation names. If 
-              l_short - then 4 hourly segments to 16 hours, else 3 hourly to 24.
-    nc_out = name of the output nc file
-    
-    OUTPUT:
-    Creates a netCDF in path that contains var_in regridded along the swath 
-    Regrid the wind netCDF from staggered horizontal grid points and rho 
-    vertical levels onto theta grid points and theta levels.
-    """
-    
-    # Use the naming convention for the input files
-    if l_short:
-        hours = ["{0:02d}".format(h) for h in xrange(0, 16, 4)]
-    else:
-        hours = ["{0:02}".format(h) for h in xrange(0, 24, 3)]
-
-    for hour in hours:
-        ########################################################################
-        #                                                                      #
-        # Section Two: Read in the netCDF, do any processing and concatenate   #
-        #                                                                      #
-        ########################################################################
-        
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Reading input variable for ' + hour
-        input_nc = Dataset(path + nc_in + '_' + hour + '.nc', 'r')
-        time_key = [i for i in input_nc.variables.keys() if 'min' in i][0]
-        # Initialise the any timeseries arrays
-        input_times = input_nc.variables[time_key][:]
-        output_var = np.zeros((input_nc.variables[var_in].shape[0], input_nc.variables[var_in].shape[1], swath_x.shape[0], swath_x.shape[1]))
-        for it in xrange(input_nc.variables[var_in][:].shape[0]):
-            output_var[it,:,:,:] = bilinear_interpolation(X, Y, input_nc.variables[var_in][it,:,:,:], swath_x.flatten(), swath_y.flatten(), kind = 2).reshape((len(z), int(swath_width/res + 1), len(R)))
-        output_var = np.concatenate((output_var, output_var0), axis = 0)
-    
-        ########################################################################
-        #                                                                      #
-        # Section Three: Save new netCDF                                       #
-        #                                                                      #
-        ########################################################################
-        
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Creating new netCDF'
-        # Create a new netcdf for the regridded wind components
-        output_nc = Dataset(path + nc_out + '_' + hour + '.nc', 'w')
-        
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Creating dimensions for the netCDF'
-        # Create dimensions for that netcdf
-        time_dim = output_nc.createDimension(time_key, input_nc.variables[var_in][:].shape[0])
-        z_dim    = output_nc.createDimension('thlev_zsea_theta', input_nc.variables[var_in][:].shape[1])
-        y_dim    = output_nc.createDimension('y_prime', swath_x.shape[0])
-        x_dim    = output_nc.createDimension('x_prime', swath_x.shape[1])
-        
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Creating variables for the netCDF'
-        # Create variables for each dimension
-        times_var = output_nc.createVariable(time_key, np.float64, (time_key,))
-        z_var     = output_nc.createVariable('thlev_zsea_theta', np.float64, ('thlev_zsea_theta',))
-        ys_var    = output_nc.createVariable('y_prime', np.float64, ('y_prime','x_prime'))
-        xs_var    = output_nc.createVariable('x_prime', np.float64, ('y_prime','x_prime'))
-        # Create the variables to store the wind components
-        out_var   = output_nc.createVariable(var_in, np.float64, (time_key, 'thlev_zsea_theta', 'y_prime', 'x_prime'))
-        
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the dimension variables'
-        # populate the dimension variables
-        times_var[:] = input_times
-        z_var[:]     = input_nc.variables['thlev_zsea_theta'][:]
-        ys_var[:]    = swath_y[:]
-        xs_var[:]    = swath_x[:]
-    
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the variable'
-        out_var[:] = output_var[:]*1.
-        
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Closing the input ncs'
-        input_nc.close()
-        
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Closing the output_nc'
-        output_nc.close()
-        
-        print '[' + dt.now().strftime("%H:%M:%S") + '] Complete.'
-
 ################################################################################
 #                                                                              #
 # Section One: Define the direction to cut a swath and compute swath coords    #
@@ -216,7 +123,105 @@ for iC in xrange(len(R)):
     swath_x[:,iC], swath_y[:,iC] = tempSwath[iC]
 
 print '[' + dt.now().strftime("%H:%M:%S") + '] Creating the swath'
-create_swath_nc(path = my_path, nc_in = 'wind', var_in = w_key, orientation_in = orientation_in, swath_width = swath_width, l_short = l_short, nc_out = 'w_swath')
+create_swath_nc(path = my_path, , , orientation_in = orientation_in, swath_width = swath_width, l_short = l_short, )
+
+"""
+Compute the swath along the cloud trail region. This is along the 
+orientation_in direction.
+
+----------------------------------------------------------------------------
+INPUT:
+"""
+path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+nc_in = 'wind'
+var_in = w_key
+nc_out = 'w_swath'
+
+"""
+OUTPUT:
+Creates a netCDF in path that contains nc_in regridded along the swath, includes
+a land mask layer in the new coordinate system.
+"""
+
+# Use the naming convention for the input files
+if l_short:
+    hours = ["{0:02d}".format(h) for h in xrange(0, 16, 4)]
+else:
+    hours = ["{0:02}".format(h) for h in xrange(0, 24, 3)]
+
+def createSwathNC(hour):
+    ############################################################################
+    #                                                                          #
+    # Section Two: Read in the netCDF, do any processing and concatenate       #
+    #                                                                          #
+    ############################################################################
+    
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Reading input variable for ' + hour
+    input_nc = Dataset(path + nc_in + '_' + hour + '.nc', 'r')
+    
+    time_key = [i for i in input_nc.variables.keys() if 'min' in i][0]
+    # Initialise the any timeseries arrays
+    input_times = input_nc.variables[time_key][:]
+    output_var = np.zeros((input_nc.variables[var_in].shape[0], input_nc.variables[var_in].shape[1], swath_x.shape[0], swath_x.shape[1]))
+    for it in xrange(input_nc.variables[var_in][:].shape[0]):
+        output_var[it,:,:,:] = bilinear_interpolation(X, Y, input_nc.variables[var_in][it,:,:,:], swath_x.flatten(), swath_y.flatten(), kind = 2).reshape((len(z), int(swath_width/res + 1), len(R)))
+    
+    ############################################################################
+    #                                                                          #
+    # Section Three: Save new netCDF                                           #
+    #                                                                          #
+    ############################################################################
+    
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Creating new netCDF'
+    # Create a new netcdf for the regridded wind components
+    output_nc = Dataset(path + nc_out + '_' + hour + '.nc', 'w')
+    
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Creating dimensions for the netCDF'
+    # Create dimensions for that netcdf
+    time_dim = output_nc.createDimension(time_key, input_nc.variables[var_in][:].shape[0])
+    z_dim    = output_nc.createDimension('thlev_zsea_theta', input_nc.variables[var_in][:].shape[1])
+    y_dim    = output_nc.createDimension('y_prime', swath_y.shape[0])
+    x_dim    = output_nc.createDimension('x_prime', swath_x.shape[1])
+    
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Creating variables for the netCDF'
+    # Create variables for each dimension
+    times_var = output_nc.createVariable(time_key, np.float32, (time_key,))
+    z_var     = output_nc.createVariable('thlev_zsea_theta', np.float32, ('thlev_zsea_theta',))
+    ys_var    = output_nc.createVariable('y_prime', np.float32, ('y_prime','x_prime'))
+    xs_var    = output_nc.createVariable('x_prime', np.float32, ('y_prime','x_prime'))
+    
+    # Create the variables to store the wind components
+    out_var   = output_nc.createVariable(var_in, np.float64, (time_key, 'thlev_zsea_theta', 'y_prime', 'x_prime'))
+    lsm_var   = output_nc.createVariable('lsm', np.float32, ('y_prime', 'x_prime'))
+    
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the dimension variables'
+    # populate the dimension variables
+    times_var[:] = input_times
+    z_var[:]     = input_nc.variables['thlev_zsea_theta'][:]
+    ys_var[:]    = swath_y[:]
+    xs_var[:]    = swath_x[:]
+    
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the variable'
+    out_var[:] = output_var[:]*1.
+    lsm_var[:] = lsm_var_interp[:]*1.
+    
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Closing the input ncs'
+    input_nc.close()
+    
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Closing the output_nc'
+    output_nc.close()
+    
+    print '[' + dt.now().strftime("%H:%M:%S") + '] Complete.'
+
+# Create the land-sea mask interpolated field
+lsm_nc   = Dataset('/work/n02/n02/xb899100/island_masks/lsm50.nc', 'r')
+lsm_var_interp = bilinear_interpolation(X, Y, lsm_nc.variables[0,:,:,:], swath_x.flatten(), swath_y.flatten(), kind = 2).reshape((int(swath_width/res + 1), len(R)))
+lsm_nc.close()
+
+p = Pool(processes = len(hours))
+p.map(createSwathNC, hours)
+p.close()
+p.join()
 
 #in_plane_winds(u, v, orientation = 90.)
 

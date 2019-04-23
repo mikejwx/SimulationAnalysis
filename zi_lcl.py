@@ -5,7 +5,8 @@ from netCDF4 import Dataset
 from scipy import interpolate
 from datetime import datetime as dt
 from analysis_tools import zi, lcl, find_h, get_CTZ
-from SkewT_archer import PTtoTemp
+from SkewT_archer import PTtoTemp, Rd, p0
+from SkewT_archer import cpd as cp
 
 """
 Code to calculate the mixed layer depth from a simple level of neutral buoyancy
@@ -13,8 +14,11 @@ method, and calculate the surface based lifting condensation level.
 
 Then compute the domain mean of these quantities and plot their time series.
 """
+# Do we want to create zi netCDF or read from zi netCDF?
+create_netCDF = 1
 l_short = 0
 l_spinup = 1
+
 # Read in the data
 if l_short:
     hours = ["{0:02d}".format(hour) for hour in xrange(0,13,4)]
@@ -29,14 +33,6 @@ nhours = len(hours)
 # with 10 minute output, there are 144 time steps
 zi_ts  = np.zeros(1)
 lcl_ts = np.zeros(1)
-
-# Define some constants
-Rd = 287.05
-cp = 1005.
-p0 = 1e5
-
-# Do we want to create zi netCDF or read from zi netCDF?
-create_netCDF = 0
 
 # Define keys to read variables from UM output
 pres_key  = u'STASH_m01s00i408' # Pressure on theta levels
@@ -53,19 +49,21 @@ zi0_key = u'boundary layer depth'
 zi1_key = u'new boundary layer depth'
 lcl_key = u'lifting condensation level'
 ctz_key = u'cloud top height'
-exp01_path        = '/work/n02/n02/xb899100/cylc-run/u-bg023/share/data/history/'
-exp02_path        = '/work/n02/n02/xb899100/cylc-run/u-bg113/share/data/history/'
-control_path      = '/work/n02/n02/xb899100/cylc-run/u-bd527/share/data/history/'
-U10_spinup_path   = '/nerc/n02/n02/xb899100/CloudTrail/Control_Spinup/'
-U05_spinup_path   = '/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/'
-RHm25_path        = '/work/n02/n02/xb899100/cylc-run/u-bg665/share/data/history/'
-U05v2_spinup_path = '/work/n02/n02/xb899100/cylc-run/u-bg952/share/data/history/'
 
-#paths = [U10_spinup_path, U05v2_spinup_path, U05_spinup_path]
-#ID = ['Control_spinup', 'U05v2_spinup', 'U05_spinup']
+exp01_path         = '/work/n02/n02/xb899100/cylc-run/u-bg023/share/data/history/'
+exp02_path         = '/work/n02/n02/xb899100/cylc-run/u-bg113/share/data/history/'
+control_path       = '/work/n02/n02/xb899100/cylc-run/u-bd527/share/data/history/'
+U10_spinup_path    = '/nerc/n02/n02/xb899100/CloudTrail/Control_Spinup/'
+U05_spinup_path    = '/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/'
+BL_RHm25_path      = '/nerc/n02/n02/xb899100/CloudTrail/RH_BLm25/'
+U05v2_spinup_path  = '/work/n02/n02/xb899100/cylc-run/u-bg952/share/data/history/'
+FA_RHm25_path      = '/work/n02/n02/xb899100/cylc-run/u-bg933/share/data/history/'
+control_short_path = '/nerc/n02/n02/xb899100/CloudTrail/Control_short/'
+U05_path           = '/work/n02/n02/xb899100/cylc-run/u-bh194/share/data/history/'
+spinup_1km_path    = '/nerc/n02/n02/xb899100/CloudTrail/Spinup_1km/'
 
-paths = [U05_spinup_path]
-ID = ['U05_spinup']
+paths = [spinup_1km_path]
+ID = ['spinup_1km_path']
 
 for path in paths:
     for hour in hours:
@@ -215,7 +213,7 @@ for path in paths:
     print '[' + dt.now().strftime("%H:%M:%S") + '] Making the plot...'
     if l_short:
         times = times/60. + 4.
-    if l_spinup:
+    elif l_spinup:
         times = times/1440.
     else:
         times /= 60.

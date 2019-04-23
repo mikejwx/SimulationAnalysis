@@ -17,10 +17,12 @@ def main(path):
     """
 
     # Use the naming convention for the input files
-    if not l_spinup:
+    if l_short:
         hours = ["{0:02d}".format(h) for h in xrange(0, 13, 4)]
-    else:
+    elif l_spinup:
         hours = ["{0:02d}".format(d) for d in xrange(1, 11)] # days for the spinup simulations
+    else:
+        hours = ["{0:02}".format(h) for h in xrange(0, 24, 3)]
     u_key = u'STASH_m01s00i002'
     v_key = u'STASH_m01s00i003'
     w_key = u'STASH_m01s00i150'
@@ -105,9 +107,16 @@ U05_spinup_path  = '/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/'
 RHm25_path       = '/work/n02/n02/xb899100/cylc-run/u-bg665/share/data/history/'
 U05v2_path       = '/work/n02/n02/xb899100/cylc-run/u-bg952/share/data/history/'
 U10_spinup_path  = '/nerc/n02/n02/xb899100/CloudTrail/Control_Spinup/'
+FAm25_path       = '/work/n02/n02/xb899100/cylc-run/u-bg933/share/data/history/'
+control_short_path = '/nerc/n02/n02/xb899100/CloudTrail/Control_short/'
+U05_path         = '/work/n02/n02/xb899100/cylc-run/u-bh194/share/data/history/'
+spinup_1km_path  = '/nerc/n02/n02/xb899100/CloudTrail/Spinup_1km/'
 
-paths    = [U10_spinup_path]
+paths    = [spinup_1km_path]
+
 l_spinup = 1
+l_short  = 0
+
 for path in paths:
     main(path)
 
