@@ -556,27 +556,38 @@ def regrid(target_grid, current_grid, current_data_key):
     10 or 15 minute data shouldn't really require regridding. But going from
     10 minute to 1 minute data definitely requires regridding and the linear 
     interpolation approach used here is probably not appropriate.
+    ----------------------------------------------------------------------------
+    INPUT:
+    target_grid      = netCDF object in the UM output format
+    current_grid     = netCDF object in the UM output format
+    current_data_key = the key of the variable which you wish to be returned
+                       after the regridding. This variable must be in the object
+                       "current_grid"
+    OUTPUT:
+    current_data     = an array containing the regridded data taken from  
+                       "current_grid" under "current_data_key" and regridded to 
+                       the dimensions of "target_grid".
     """
     # Read the data that contains the target grid
     target_x_key     = [key for key in target_grid.variables.keys() if ('longitude' in key) and ('_l' not in key)][0]
-    target_x = target_grid.variables[target_x_key][:]
+    target_x         = target_grid.variables[target_x_key][:]
     target_y_key     = [key for key in target_grid.variables.keys() if ('latitude' in key) and ('_l' not in key)][0]
-    target_y = target_grid.variables[target_y_key][:]
+    target_y         = target_grid.variables[target_y_key][:]
     target_z_key     = [key for key in target_grid.variables.keys() if ('zsea' in key) and ('bounds' not in key)][0]
-    target_z = target_grid.variables[target_z_key][:]
+    target_z         = target_grid.variables[target_z_key][:]
     target_t_key     = [key for key in target_grid.variables.keys() if 'min' in key][0]
-    target_t = target_grid.variables[target_t_key][:]
+    target_t         = target_grid.variables[target_t_key][:]
     
     # Read the netCDF that needs to be transformed
     current_x_key     = [key for key in current_grid.variables.keys() if ('longitude' in key) and ('_l' not in key)][0]
-    current_x = current_grid.variables[current_x_key][:]
+    current_x         = current_grid.variables[current_x_key][:]
     current_y_key     = [key for key in current_grid.variables.keys() if ('latitude' in key) and ('_l' not in key)][0]
-    current_y = current_grid.variables[current_y_key][:]
+    current_y         = current_grid.variables[current_y_key][:]
     current_z_key     = [key for key in current_grid.variables.keys() if ('zsea' in key) and ('bounds' not in key)][0]
-    current_z = current_grid.variables[current_z_key][:]
+    current_z         = current_grid.variables[current_z_key][:]
     current_t_key     = [key for key in current_grid.variables.keys() if 'min' in key][0]
-    current_t = current_grid.variables[current_t_key][:]
-    current_data = current_grid.variables[current_data_key][:]
+    current_t         = current_grid.variables[current_t_key][:]
+    current_data      = current_grid.variables[current_data_key][:]
      
     ### Procedure ###
     # Will usually only need to interpolate in z, sometimes in x or y, probably
