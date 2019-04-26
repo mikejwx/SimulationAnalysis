@@ -31,7 +31,7 @@ from STASH_keys import u_key, v_key, zi_new_key, rho_key, w_key
 
 # Get a list of all of the wind nc files
 print '[' + dt.now().strftime("%H:%M:%S") + '] Determining the swath orientation'
-my_path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+my_path = '/nerc/n02/n02/xb899100/CloudTrail/H375/'
 my_files = os.listdir(my_path)
 wind_files = [my_file for my_file in my_files if 'wind' in my_file]
 zi_files = [my_file for my_file in my_files if 'zi' in my_file]
@@ -130,7 +130,7 @@ orientation_in direction.
 ----------------------------------------------------------------------------
 INPUT:
 """
-path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+path = my_path
 nc_in = 'fluxes'
 var_in = rho_key
 nc_out = 'rho_swath'
@@ -193,7 +193,6 @@ def createSwathNC(hour):
     
     # Create the variables to store the wind components
     out_var   = output_nc.createVariable(var_in, np.float64, (time_key, 'thlev_zsea_theta', 'y_prime', 'x_prime'))
-    out_anom  = output_nc.createVariable(var_in + '_anomaly', np.float64, (time_key, 'thlev_zsea_theta','y_prime', 'x_prime'))
     lsm_var   = output_nc.createVariable('lsm', np.float32, ('y_prime', 'x_prime'))
     
     print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the dimension variables'
@@ -205,7 +204,6 @@ def createSwathNC(hour):
     
     print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the variable'
     out_var[:]  = output_var[:]*1.
-    out_anom[:] = output_anom[:]*1.
     lsm_var[:]  = lsm_var_interp[:]*1.
     
     print '[' + dt.now().strftime("%H:%M:%S") + '] Closing the input ncs'
