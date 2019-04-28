@@ -13,15 +13,15 @@ def getThetaE(theta, temperature, pressure, t_units = 'K', p_units = 'hPa'):
     """
     # do unit conversions if neccessary
     if t_units == 'C':
-        temperature += 273.15
+        temperature = temperature + 273.15
     elif t_units == 'F':
         temperature = (temperature - 32.)*1.8 + 273.15
     
     if p_units == 'Pa':
-        pressure /= 100.
+        pressure = pressure/100.
     
     # calculate the saturated specific humidity from temperature and pressure
-    qs = getQ(temperature*1., [100.], pressure*1.)
+    qs = getQ(temperature*1., [100.], pressure*1., t_units = 'K', p_units = 'hPa')
     
     # calculate the equivalent potential temperature and return it
     theta_e = theta*np.exp(Lv*qs/(cpd*temperature))
@@ -49,7 +49,7 @@ def getQ(TIN, RHIN, PIN, t_units = 'C', p_units = 'hPa'):
     
     #convert to degC
     if t_units == 'K':
-        TIN -= 273.15
+        TIN = TIN - 273.15
     #convert to Pa
     if p_units == 'Pa':
         p = PIN
