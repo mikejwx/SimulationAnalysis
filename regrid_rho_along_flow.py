@@ -5,7 +5,7 @@ which follow the horizontal mean wind direction.
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate, integrate
-from analysis_tools import fromComponents, get_cs_coords, bilinear_interpolation, in_plane_winds, getML_mean, regrid
+from analysis_tools import fromComponents, get_cs_coords, bilinear_interpolation, in_plane_winds, getML_mean, regrid, send_email
 from netCDF4 import Dataset
 from datetime import datetime as dt
 from multiprocessing import Pool
@@ -31,7 +31,7 @@ from STASH_keys import u_key, v_key, zi_new_key, rho_key, w_key
 
 # Get a list of all of the wind nc files
 print '[' + dt.now().strftime("%H:%M:%S") + '] Determining the swath orientation'
-my_path = '/nerc/n02/n02/xb899100/CloudTrail/H375/'
+my_path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
 my_files = os.listdir(my_path)
 wind_files = [my_file for my_file in my_files if 'wind' in my_file]
 zi_files = [my_file for my_file in my_files if 'zi' in my_file]
@@ -39,14 +39,15 @@ wind_files.sort()
 zi_files.sort()
 
 if len(wind_files) == 8:
-    # This is a long experiment
+    print '[' + dt.now().strftime("%H:%M:%S") + '] This is a long experiment'
     l_short = False
 else:
-    # This is a short experiment
+    print '[' + dt.now().strftime("%H:%M:%S") + '] This is a short experiment'
     l_short = True
 
 # Get the horizontally averaged winds
 for ncfile in wind_files:
+    print '[' + dt.now().strftime("%H:%M:%S") + '] ' + ncfile
     wind_nc = Dataset(my_path + ncfile, 'r')
     if ncfile == wind_files[0]:
         z = wind_nc.variables['thlev_zsea_theta'][:]
@@ -57,12 +58,13 @@ for ncfile in wind_files:
         v = np.concatenate((v, np.nanmean(wind_nc.variables[v_key][:], axis = (2, 3))), axis = 0)
     wind_nc.close()
 
-# Get the time averaged winds
+print '[' + dt.now().strftime("%H:%M:%S") + '] Get the time averaged winds'
 u = np.nanmean(u, axis = 0)
 v = np.nanmean(v, axis = 0)
 
-# Get the horizontally averaged mixed layer depth
+print '[' + dt.now().strftime("%H:%M:%S") + '] Get the horizontally averaged mixed layer depth'
 for ncfile in zi_files:
+    print '[' + dt.now().strftime("%H:%M:%S") + '] ' + ncfile
     zi_nc = Dataset(my_path + ncfile, 'r')
     if ncfile == zi_files[0]:
         zi = np.nanmean(zi_nc.variables[zi_new_key][:], axis = (1, 2))
@@ -77,6 +79,8 @@ zi = np.nanmean(zi, axis = 0)
 u_ML = getML_mean(u, z, zi)
 v_ML = getML_mean(v, z, zi)
 orientation_in = fromComponents(u_ML, v_ML)[1]
+
+print '[' + dt.now().strftime("%H:%M:%S") + '] ' + str(orientation_in)
 
 print '[' + dt.now().strftime("%H:%M:%S") + '] Defining the swath coordinates to interpolate onto'
 # We know from our domain definition where the centre of the island should be
@@ -126,18 +130,13 @@ print '[' + dt.now().strftime("%H:%M:%S") + '] Creating the swath'
 """
 Compute the swath along the cloud trail region. This is along the 
 orientation_in direction.
-
-----------------------------------------------------------------------------
-INPUT:
 """
-path = my_path
 nc_in = 'fluxes'
-var_in = rho_key
 nc_out = 'rho_swath'
 
 """
 OUTPUT:
-Creates a netCDF in path that contains nc_in regridded along the swath, includes
+Creates a netCDF in my_path that contains nc_in regridded along the swath, includes
 a land mask layer in the new coordinate system.
 """
 
@@ -155,10 +154,10 @@ def createSwathNC(hour):
     ############################################################################
     
     print '[' + dt.now().strftime("%H:%M:%S") + '] Reading input variable for ' + hour
-    input_nc       = Dataset(path + nc_in + '_' + hour + '.nc', 'r')
-    target_grid_nc = Dataset(path + 'wind_' + hour + '.nc', 'r')
+    input_nc       = Dataset(my_path + nc_in + '_' + hour + '.nc', 'r')
+    target_grid_nc = Dataset(my_path + 'wind_' + hour + '.nc', 'r')
     
-    input_data = regrid(target_grid_nc, input_nc, var_in)
+    input_data = regrid(target_grid_nc, input_nc, rho_key)
     
     time_key = [i for i in input_nc.variables.keys() if 'min' in i][0]
     # Initialise the any timeseries arrays
@@ -175,12 +174,12 @@ def createSwathNC(hour):
     
     print '[' + dt.now().strftime("%H:%M:%S") + '] Creating new netCDF'
     # Create a new netcdf for the regridded wind components
-    output_nc = Dataset(path + nc_out + '_' + hour + '.nc', 'w')
+    output_nc = Dataset(my_path + nc_out + '_' + hour + '.nc', 'w')
     
     print '[' + dt.now().strftime("%H:%M:%S") + '] Creating dimensions for the netCDF'
     # Create dimensions for that netcdf
-    time_dim = output_nc.createDimension(time_key, input_nc.variables[var_in][:].shape[0])
-    z_dim    = output_nc.createDimension('thlev_zsea_theta', input_nc.variables[var_in][:].shape[1])
+    time_dim = output_nc.createDimension(time_key, input_nc.variables[rho_key][:].shape[0])
+    z_dim    = output_nc.createDimension('thlev_zsea_theta', output_var.shape[1])
     y_dim    = output_nc.createDimension('y_prime', swath_y.shape[0])
     x_dim    = output_nc.createDimension('x_prime', swath_x.shape[1])
     
@@ -192,7 +191,7 @@ def createSwathNC(hour):
     xs_var    = output_nc.createVariable('x_prime', np.float32, ('y_prime','x_prime'))
     
     # Create the variables to store the wind components
-    out_var   = output_nc.createVariable(var_in, np.float64, (time_key, 'thlev_zsea_theta', 'y_prime', 'x_prime'))
+    out_var   = output_nc.createVariable(rho_key, np.float64, (time_key, 'thlev_zsea_theta', 'y_prime', 'x_prime'))
     lsm_var   = output_nc.createVariable('lsm', np.float32, ('y_prime', 'x_prime'))
     
     print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the dimension variables'
@@ -224,8 +223,5 @@ p.map(createSwathNC, hours)
 p.close()
 p.join()
 
-#in_plane_winds(u, v, orientation = 90.)
-
-
-
+send_email(message = 'Completed rho swath for ' + my_path.split('/')[-1] + ' experiment.', subject = 'regrid_rho_along_flow.py', attachments = [''], isAttach = False)
 
