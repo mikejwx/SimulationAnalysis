@@ -21,23 +21,22 @@ from SkewT_archer import getDew, PTtoTemp, getQ, Rd, cpd, g
 l_verbose = True
 
 # Toggle thermodynamics
-l_thermodynamics = 0
+l_thermodynamics = 1
 
 # Toggle dynamics
-l_dynamics = 0
+l_dynamics = 1
 
 # Toggle surface fluxes
 l_fluxes = 1
 
+# u_geo
+UG = -10.
+
 # file ID
-#ID = 'Control'
-#ID = 'U05'
-ID = 'U05v2'
+ID = 'spinup_1600m'
 
 # Change the path to the data
-#data_path = '/nerc/n02/n02/xb899100/CloudTrail/Control_Spinup/'
-#data_path = '/nerc/n02/n02/xb899100/CloudTrail/U05_Spinup/'
-data_path = '/work/n02/n02/xb899100/cylc-run/u-bg952/share/data/history/'
+data_path = '/nerc/n02/n02/xb899100/CloudTrail/Spinup_1600m/'
 
 ### Updated from 'temperature_profiles.py' ###
 # Define a list of days to take advantage of regular expression in naming
@@ -204,7 +203,7 @@ if l_dynamics:
 
     #<------------------Geostrophic Forcing Needs to be Changed------------------->#
     u_g_z = np.array([0., 9000., 15000., 40000.])
-    u_g = np.array([-10., -10., 0., 0.])
+    u_g = np.array([UG, UG, 0., 0.])
     u_g_interpolated = interpolate.interp1d(u_g_z, u_g, fill_value = 'extrapolate')(z_rho)
     v_g_interpolated = np.zeros_like(z_rho)
     #<---------------------------------------------------------------------------->#
@@ -221,8 +220,8 @@ if l_dynamics:
     
     ### Blended transition from mean in the boundary layer to geostrophic wind above ###
     factor = z_rho/target_zi
-    u_balanced_new = np.array([u_balanced[k] if factor[k] < 1.0 else (factor[k])*u_g_interpolated[k] + (1. - factor[k])*u_balanced[k] if factor[k] < 2.0 else u_g_interpolated[k] for k in xrange(len(z_rho))])
-    v_balanced_new = np.array([v_balanced[k] if factor[k] < 1.0 else (factor[k])*v_g_interpolated[k] + (1. - factor[k])*v_balanced[k] if factor[k] < 2.0 else v_g_interpolated[k] for k in xrange(len(z_rho))])
+    u_balanced_new = np.array([u_balanced[k] if factor[k] < 1.0 else (factor[k] - 1.)*u_g_interpolated[k] + (2. - factor[k])*u_balanced[k] if factor[k] < 2.0 else u_g_interpolated[k] for k in xrange(len(z_rho))])
+    v_balanced_new = np.array([v_balanced[k] if factor[k] < 1.0 else (factor[k] - 1.)*v_g_interpolated[k] + (2. - factor[k])*v_balanced[k] if factor[k] < 2.0 else v_g_interpolated[k] for k in xrange(len(z_rho))])
 
     ### Minimize required points to reproduce the profiles using the RDP function ###
     # Create a well-reproduces u-profile
@@ -257,6 +256,11 @@ if l_dynamics:
         for k in xrange(n_uvlev-1):
             my_new_file.write(str(round(v_u[k],2))+',')
         my_new_file.write(str(round(v_u[-1],2)))
+    
+    if l_verbose:
+        plt.plot(u_u, z_u)
+        plt.plot(v_u, z_u)
+        plt.show()
 
 ### Updates from 'surface_fluxes.py' ###
 
@@ -266,17 +270,18 @@ if l_fluxes:
     for day in days:
         if l_verbose: print 'STARTING: day ' + day
         fluxes_nc = Dataset(data_path + 'fluxes_' + day + '.nc', 'r')
+        time_key = [key for key in fluxes_nc.variables.keys() if ('hr' in key) or ('min' in key)][0]
         
         if day == '01':
             dt_i = fluxes_nc.variables[lhf_key].shape[0]
             
             LHF   = np.nanmean(fluxes_nc.variables[lhf_key][:], axis = (1, 2))
             SHF   = np.nanmean(fluxes_nc.variables[shf_key][:], axis = (1, 2))
-            times = fluxes_nc.variables['hr1'][:]*1.
+            times = fluxes_nc.variables[time_key][:]*1.
         else:
             LHF   = np.concatenate((LHF, np.mean(fluxes_nc.variables[lhf_key][:], axis = (1, 2))))
             SHF   = np.concatenate((SHF, np.mean(fluxes_nc.variables[shf_key][:], axis = (1, 2))))
-            times = np.concatenate((times, fluxes_nc.variables['hr1'][:]*1.), axis = 0)
+            times = np.concatenate((times, fluxes_nc.variables[time_key][:]*1.), axis = 0)
         fluxes_nc.close()
 
     SHF_mean = round(np.nanmean(SHF[-4*dt_i:]), 4)
