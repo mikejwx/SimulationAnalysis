@@ -109,7 +109,7 @@ for chunk in [0,2]:#xrange(nchunks):
     p.join()
     for iC in xrange(len(chunk_Rs[chunk_keys[-1]])):
         #print 'iC = ' + str(iC)
-        chunks_x[chunk_keys[-1]][iC,:], chunks_y[chunk_keys[-1]][iC,:] = tempChunk[iC] 
+        chunks_x[chunk_keys[-1]][iC,:], chunks_y[chunk_keys[-1]][iC,:] = tempChunk[iC]
 
 #send_email(message = 'Finished defining the chunks', subject = 'along_wind_mean_plots.py', attachments = [''], isAttach = False)
 
