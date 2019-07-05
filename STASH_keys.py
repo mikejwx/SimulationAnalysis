@@ -8,11 +8,11 @@ theta_key       = u'STASH_m01s00i004'
 q_key           = u'STASH_m01s00i010'
 w_key           = u'STASH_m01s00i150'
 rho_key         = u'STASH_m01s00i389'
-mv_key          = u'STASH_m01s00i391'
-mcl_key         = u'STASH_m01s00i392'
-mci_key         = u'STASH_m01s00i393'
-mr_key          = u'STASH_m01s00i394'
-mg_key          = u'STASH_m01s00i395'
+mv_key          = u'STASH_m01s00i391' # water vapour mixing ratio
+mcl_key         = u'STASH_m01s00i392' # cloud liquid mixing ratio
+mci_key         = u'STASH_m01s00i393' # cloud ice mixing ratio
+mr_key          = u'STASH_m01s00i394' # rain water mixing ratio
+mg_key          = u'STASH_m01s00i395' # graupel mixing ratio
 prho_key        = u'STASH_m01s00i407' # Pressure on rho levels
 pthe_key        = u'STASH_m01s00i408' # Pressure on theta levels
 tinc_bl_key     = u'STASH_m01s03i181'
@@ -42,11 +42,12 @@ tinc_ideal_key  = u'STASH_m01s53i181'
 qinc_ideal_key  = u'STASH_m01s53i182'
 
 # My keys
-s_key      = u'Flow-Parallel'
-n_key      = u'Flow-Perpendicular'
-zi_new_key = u'new boundary layer depth'
-zi_old_key = u'boundary layer depth'
-lcl_key    = u'lifting condensation level'
-ctz_key    = u'cloud top height'
-
+s_key          = u'Flow-Parallel'
+n_key          = u'Flow-Perpendicular'
+np_key         = u'n-prime'
+zi_new_key     = u'new boundary layer depth'
+zi_old_key     = u'boundary layer depth'
+lcl_key        = u'lifting condensation level'
+ctz_key        = u'cloud top height'
+theta_anom_key = u'STASH_m01s00i004_anomaly'
 
