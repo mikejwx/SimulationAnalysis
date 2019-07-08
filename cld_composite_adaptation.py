@@ -69,7 +69,7 @@ if not os.path.exists(resultpath):
 # use os to get all the files in the path, we want to ignore the swath and horizontal wind component files
 all_files = []
 for filename in sorted(os.listdir(filepath)):
-    if min([flag not in filename for flag in ['swath', 'u', 'v']]):
+    if min([flag not in filename for flag in ['swath_', 'u_', 'v_']]):
         # We don't want to double count the data so ignore the swathed stuff
         all_files.append(filename)
 
@@ -79,46 +79,63 @@ all_first_files = [filename for filename in all_files if '_00' in filename]
 # begin to get time dimensions for each file and also x,y,z dimensions
 num = 0
 nt  = []
-filename = all_first_files[0]
+#filename = all_first_files[0]
 
-print filename # should be bouy_00.nc
+print 'Starting the data assignment'
 
 # lets go through and grab all the required variables, note that we don't have snow mixing ratios
+need_to_find = ['prs', 'rho', 'w', 'theta', 'ql', 'qv', 'qrain', 'qice', 'qgrap', 'qsnow', 'hgt', 'hgt_rho']
 for filename in all_first_files:
+    print 'Opening file ' + filename
     data = netCDF4.Dataset(filepath + filename, 'r')
     if pthe_key in data.variables.keys():
-        # pressure on theta levels
+        print '---> Found pressure on theta levels'
         prs = data.variables[pthe_key][:]*1.
-    elif rho_key in data.variables.keys():
-        # dry rho on rho levels
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'prs']
+    if rho_key in data.variables.keys():
+        print '---> Found dry rho on rho levels'
         rho = data.variables[rho_key][:]*1.
-    elif w_key in data.variables.keys():
-        # vertical velocity
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'rho']
+    if w_key in data.variables.keys():
+        print '---> Found vertical velocity'
         w = data.variables[w_key][:]*1.
-    elif theta_key in data.variables.keys():
-        # theta - potential temperature
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'w']
+    if theta_key in data.variables.keys():
+        print '---> Found theta - potential temperature'
         theta = data.variables[theta_key][:]*1.
-    elif mcl_key in data.variables.keys():
-        # cloud liquid mixing ratio
-        rl = data.variables[mcl_key][:]*1.
-    elif mv_key in data.variables.keys():
-        # water vapour mixing ratio
-        rv = data.variables[mv_key][:]*1.
-    elif mr_key in data.variables.keys():
-        # rain water mixing ratio
-        rrain = data.variables[mr_key][:]*1.
-    elif mcf_key in data.variables.keys():
-        # cloud ice mxing ratio
-        rice = data.variables[mcf_key][:]*1.
-    elif mg_key in data.variables.keys():
-        # graupel mixing ratio
-        data.variables[mg_key][:]*1.
-    elif 'thlev_zsea_theta' in data.variables.keys():
-        # height coordinates for theta levels
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'theta']
+    if mcl_key in data.variables.keys():
+        print '---> Found cloud liquid mixing ratio'
+        ql = data.variables[mcl_key][:]*1.
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'ql']
+    if mv_key in data.variables.keys():
+        print '---> Found water vapour mixing ratio'
+        qv = data.variables[mv_key][:]*1.
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'qv']
+    if mr_key in data.variables.keys():
+        print '---> Found rain water mixing ratio'
+        qrain = data.variables[mr_key][:]*1.
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'qrain']
+    if mci_key in data.variables.keys():
+        print '---> Found cloud ice mxing ratio'
+        qice = data.variables[mci_key][:]*1.
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'qice']
+    if mg_key in data.variables.keys():
+        print '---> Found graupel mixing ratio'
+        qgrap = data.variables[mg_key][:]*1.
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'qgrap']
+    if 'thlev_zsea_theta' in data.variables.keys():
+        print '---> Found height coordinates for theta levels'
         hgt = data.variables['thlev_zsea_theta'][:]*1.
-    elif 'rholev_zsea_theta' in data.variables.keys():
-        # height coordinates for rho levels
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'hgt']
+    if 'rholev_zsea_theta' in data.variables.keys():
+        print '---> Found height coordinates for rho levels'
         hgt_rho = data.variables['rholev_zsea_theta'][:]*1.
+        need_to_find = [ntf for ntf in need_to_find if ntf not 'hgt_rho']
+
+print [ntf for ntf in need_to_find]
+for ntf in need_to_find:
+    vars()[ntf] = np.zeros_like(qv)
 
 # get the total number of times and x,y,z dimensions
 ntimes = theta.shape[0]
@@ -195,6 +212,20 @@ ud_radius_var_stat   = {}
 ud_radius_m_stat     = {}
 ud_edge_stat         = {}
 ud_in_cld_stat       = {}
+
+# Compute liquid water potential temperature
+thetal = theta - Lv/Cp_da*ql*(Pref/prs)**(Rs_da/Cp_da) - Ls/Cp_da*qice*(Pref/prs)**(Rs_da/Cp_da)
+
+# compute total water mixing ratio
+qt     = ql + qv + qrain + qice + qsnow + qgrap
+
+# compute virtual potential temperature, theta_v
+thetav = theta*(1.0 + qv/Epsilon)/(1.0 + qt)
+
+# compute cloud water
+qcld   = ql + qice
+
+# Get perturbations
 """
 ################################################################################
 ############################# Lets's Begin #####################################
@@ -206,42 +237,6 @@ nfile = 0
 for file_num in range(0, 1):
     filename = all_files[0]
     print filename
-    
-    # get data from each file
-    data = netCDF4.Dataset(filepath+filename)
-    for ntt in range(0, nt[nfile]):
-        # get variables
-        print 'get variables'
-        temp             = data.variables['w'][ntt,:,:,:] # get variable 'w' at time step ntt
-        WW_z[num,:,:,:]  = np.transpose(temp, (2,1,0)) # transpose 'w'from w[x,y,z] to w[z,y,x]?
-        temp             = data.variables['th'][ntt,:,:,:]
-        theta[num,:,:,:] = np.transpose(temp, (2,1,0))
-        temp             = data.variables['q_vapour'][ntt,:,:,:]
-        rv[num,:,:,:]    = np.transpose(temp, (2,1,0))
-        temp             = data.variables['q_cloud_liquid_mass'][ntt,:,:,:]
-        rl[num,:,:,:]    = np.transpose(temp, (2,1,0))
-        temp             = data.variables['q_rain_mass'][ntt,:,:,:]
-        rrain[num,:,:,:] = np.transpose(temp, (2,1,0))
-        temp             = data.variables['q_ice_mass'][ntt,:,:,:]
-        rice[num,:,:,:]  = np.transpose(temp, (2,1,0))
-        temp             = data.variables['q_snow_mass'][ntt,:,:,:]
-        rsnow[num,:,:,:] = np.transpose(temp, (2,1,0))
-        temp             = data.variables['q_graupel_mass'][ntt,:,:,:]
-        rgrap[num,:,:,:] = np.transpose(temp, (2,1,0))
-        hgt[num,:]       = data.variables['zn'][:] # grab the height levels, hgt[z]
-        prs2d[num,:]     = pref[num,:] # grab the pressure levels, prs[z]
-        
-        for kk in range(0, nz+1):
-            # compute liquid potential temperature, thetal
-            thetal[num,kk,:,:]    = theta[num,kk,:,:] - Lv/Cp_da*ql[num,kk,:,:]*(Pref/prs2d[num,kk])**(Rs_da/Cp_da) - Ls/Cp_da*qice[num,kk,:,:]*(Pref/prs2d[num,kk])**(Rs_da/Cp_da)
-        
-        # compute total water mixing ratio
-        qt[num,:,:,:]         = ql[num,:,:,:] + qv[num,:,:,:] + qrain[num,:,:,:] + qice[num,:,:,:] + qsnow[num,:,:,:] + qgrap[num,:,:,:]
-        # compute virtual potential temperature, theta_v
-        thetav[num,:,:,:]     = theta[num,:,:,:]*(1.0 + qv[num,:,:,:]/Epsilon)/(1.0 + qt)
-        # compute cloud water
-        qcld[num,:,:,:]       = ql[num,:,:,:] + qice[num,:,:,:]
-
         # Get perturbations
         for kk in range(0,nz+1):
             # for each height, compute the perturbation from the horizontal mean
