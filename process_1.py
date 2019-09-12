@@ -24,6 +24,7 @@ if not l_spinup:
     l_short   = bool(int(raw_input('Is this a short experiment? (yes = 1, no = 0):')))
 else:
     l_short   = False
+create_WIND   = bool(int(raw_input('Do you want to regrid the winds? (yes = 1, no = 0):')))
 create_netCDF = bool(int(raw_input('Do you want to create zi_lcl netCDF? (yes = 1, no = 0):')))
 
 print 'path         : ' + path
@@ -32,8 +33,13 @@ print 'l_spinup     : ' + str(l_spinup)
 print 'l_short      : ' + str(l_short)
 print 'create_netCDF: ' + str(create_netCDF)
 
-winds(path, l_spinup, l_short)
+print '\nRegridding winds...'
+if create_WIND:
+    winds(path, l_spinup, l_short)
+
+print '\nComputing boundary layer and cloud characteristics...'
 zi_lcl(path, ID, l_spinup, l_short, create_netCDF)
+
 if l_spinup:
     UG = float(raw_input('Input zonal geostrophic wind:'))
     create_IC(path, ID, UG)
