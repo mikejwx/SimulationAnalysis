@@ -4,7 +4,7 @@ from netCDF4 import Dataset
 from analysis_tools import fromComponents, bilinear_interpolation, get_cs_coords
 from scipy import integrate, interpolate
 from datetime import datetime as dt
-plt.switch_backend('agg')
+#plt.switch_backend('agg')
 
 """
 Compute the mass flux across the cloud trail for our experiments, how does it
@@ -12,162 +12,207 @@ change for the changing environment at different heights and different
 distances downwind of the island.
 """
 
-my_h = 100.
-print '[' + dt.now().strftime('%H:%M') + '] Defining the paths to data...'
+print '[' + dt.now().strftime('%H:%M:%S') + '] Defining the paths to data...'
 # Define the paths in which the data are stored
+
 paths = {'Control'       : '/nerc/n02/n02/xb899100/CloudTrail/Control/',
-         'B_1_3'         : '/nerc/n02/n02/xb899100/CloudTrail/H125/',
-         'B_3.0'         : '/nerc/n02/n02/xb899100/CloudTrail/H375/',
-         'Control_short' : '/nerc/n02/n02/xb899100/CloudTrail/Control_short/',
+         'B1/3'          : '/nerc/n02/n02/xb899100/CloudTrail/H125/',
+         'B3.0'          : '/nerc/n02/n02/xb899100/CloudTrail/H375/',
          'BL_RHm25'      : '/nerc/n02/n02/xb899100/CloudTrail/RH_BLm25/',
          'FA_RHm25'      : '/nerc/n02/n02/xb899100/CloudTrail/RH_FAm25/',
          'U05'           : '/nerc/n02/n02/xb899100/CloudTrail/U05/'}
 
-print '[' + dt.now().strftime('%H:%M') + '] Determining short sims...'
+# 'Control_short' : '/nerc/n02/n02/xb899100/CloudTrail/Control_short/',
+
+my_colors = {'Control'       : 'black',
+             'B1/3'          : 'cyan',
+             'B3.0'          : 'orange',
+             'Control_short' : 'grey',
+             'BL_RHm25'      : 'olive',
+             'FA_RHm25'      : 'magenta',
+             'U05'           : 'green'}
+
+print '[' + dt.now().strftime('%H:%M:%S') + '] Determining short sims...'
 short_sims = ['Control_short', 'BL_RHm25', 'FA_RHm25', 'U05']
 
-print '[' + dt.now().strftime('%H:%M') + '] Defining the required variable keys...'
+print '[' + dt.now().strftime('%H:%M:%S') + '] Defining the required variable keys...'
 # Define the keys for rho and winds
-rho_key = u'STASH_m01s00i389'
-u_key   = u'STASH_m01s00i002'
-v_key   = u'STASH_m01s00i003'
-w_key   = u'STASH_m01s00i150'
+from STASH_keys import rho_key, u_key, v_key, w_key
 
-print '[' + dt.now().strftime('%H:%M') + '] Starting the routine for each experiment...'
+print '[' + dt.now().strftime('%H:%M:%S') + '] Starting the routine for each experiment...'
 mass_flux_xs = {}
 for key in paths.keys():
-    print '[' + dt.now().strftime('%H:%M') + '] Starting experiment ' + key + '...'
+    print '[' + dt.now().strftime('%H:%M:%S') + '] Starting experiment ' + key + '...'
     if key in short_sims:
-        print '[' + dt.now().strftime('%H:%M') + '] ' + key + ' is a short experiment...'
+        print '[' + dt.now().strftime('%H:%M:%S') + '] ' + key + ' is a short experiment...'
         hour = '04'
         start_t = 300.
         end_t = 480.
     else:
-        print '[' + dt.now().strftime('%H:%M') + '] ' + key + ' is a long experiment...'
+        print '[' + dt.now().strftime('%H:%M:%S') + '] ' + key + ' is a long experiment...'
         hour = '09'
         start_t = 540.
         end_t = 720.
     
-    print '[' + dt.now().strftime('%H:%M') + '] Opening the netCDF...'
-    # Read in rho and winds
-    rho_nc  = Dataset(paths[key] + 'fluxes_' + hour + '.nc', 'r')
-    wind_nc = Dataset(paths[key] + 'wind_' + hour + '.nc', 'r')
+    print '[' + dt.now().strftime('%H:%M:%S') + '] Opening the netCDF...'
+    # Read in swath netCDF
+    rho_swath_nc  = Dataset(paths[key] + 'rho_swath_' + hour + '.nc', 'r')
+    w_swath_nc    = Dataset(paths[key] + 'w_swath_' + hour + '.nc', 'r')
     
-    print '[' + dt.now().strftime('%H:%M') + '] Reading the required dimensions...'
+    # Find the start and end time idxs
+    rho_time_key = [tkey for tkey in rho_swath_nc.variables.keys() if 'min' in tkey][0]
+    
+    rho_times = rho_swath_nc.variables[rho_time_key][:]
+    
+    start_idx = np.where(np.abs(rho_times - start_t) == np.min(np.abs(rho_times - start_t)))[0][0]
+    end_idx   = np.where(np.abs(rho_times - end_t)   == np.min(np.abs(rho_times - end_t)))[0][0]
+    
+    t_idx = range(start_idx, end_idx + 1)
+    print '[' + dt.now().strftime('%H:%M:%S') + '] Reading the required dimensions...'
     # Want the cross section across the trail averaged in time for 3-hours prior
-    # to the start of the cloud trail, find the appropriate times
-    # Find the time keys for the respective netCDF
-    rho_times_key = [tkey for tkey in rho_nc.variables.keys() if 'min' in tkey][0]
-    wind_times_key = [tkey for tkey in wind_nc.variables.keys() if 'min' in tkey][0]
-    # Read the times
-    rho_times = rho_nc.variables[rho_times_key][:]
-    wind_times = wind_nc.variables[wind_times_key][:]
-    # Find the indexes for all the times in the preceeding period of interest
-    if len(wind_times) > len(rho_times):
-        # do the rho times first, and only do the matching wind times
-        its_rho = [it for it in xrange(rho_times.shape[0]) if start_t <= rho_times[it] <= end_t]
-        its_wind = [np.where(wind_times == rho_times[it])[0][0] for it in its_rho]
-    else:
-        # do the wind times first and only do the matching rho times
-        its_wind = [it for it in xrange(wind_times.shape[0]) if start_t <= wind_times[it] <= end_t]
-        its_rho = [np.where(rho_times == wind_times[it])[0][0] for it in its_wind]
+    # to the peak island heating
     
-    print '[' + dt.now().strftime('%H:%M') + '] Determining the mean wind direction...'
-    # Find the average wind for that time period in u- and v- components
-    u_0 = np.nanmean(wind_nc.variables[u_key][its_wind,:,:,:], axis = (0, 2, 3))
-    v_0 = np.nanmean(wind_nc.variables[v_key][its_wind,:,:,:], axis = (0, 2, 3))
-    # Integrate in height (1st get the height dimension)
-    z_theta = wind_nc.variables['thlev_zsea_theta'][:]
-    z_rho = rho_nc.variables['rholev_zsea_rho'][:]
-    # Define upper height limit for the integration
-    z_top = 500.
-    iz_top = np.where(np.min(np.abs(z_theta - z_top)) == np.abs(z_theta - z_top))[0][0]
-    # Calculate the wind direction
-    u_mean = integrate.trapz(x = z_theta[:iz_top], y = u_0[:iz_top])/z_top
-    v_mean = integrate.trapz(x = z_theta[:iz_top], y = v_0[:iz_top])/z_top
-    wind_direction = fromComponents(u_mean, v_mean)[1]
-    
-    print '[' + dt.now().strftime('%H:%M') + '] The mean wind direction is ' + str(int(wind_direction)) + '...'
-    # Find the cross sectional slice through the domain along the wind
-    # This requires us to define where we want to originate the slice from
-    # e.g. centre of the island, requires land mask
-    print '[' + dt.now().strftime('%H:%M') + '] Defining the along-wind cross section...'
-    landseamask = Dataset('/work/n02/n02/xb899100/island_masks/lsm50.nc', 'r')
-    
-    lsm = landseamask.variables['lsm'][0,0,:,:]*1.
-    y = landseamask.variables['latitude'][:]*1.
-    x = landseamask.variables['longitude'][:]*1.
-    
-    # create 2D coordinate mesh
-    X, Y = np.meshgrid(x, y)
-    
-    landseamask.close()
+    # Define our height dimension
+    z_theta = w_swath_nc.variables['thlev_zsea_theta'][:]*1.
     
     # We know from our domain definition where the centre of the island should be
     R_i = 1000.0*(50.0/np.pi)**0.5 # island radius
     x_c = 100000.0 + R_i
     y_c = 4*R_i
     
-    # From this center point, draw line in either direction parallel to wind_dir_0
-    # get the coordinates of this line at 100 m resolution.
-    x_cs, y_cs = get_cs_coords(x_c, y_c, wind_direction, X, Y, h = my_h)
+    # Define the distance away from the island centre
+    x_prime = rho_swath_nc.variables['x_prime'][:]
+    y_prime = rho_swath_nc.variables['y_prime'][:]
+    x_R = x_prime - x_c
+    y_R = y_prime - y_c
+    R = -np.sign(x_R)*np.sqrt(x_R**2 + y_R**2)
     
-    R = -np.sign(x_cs - x_c)*np.sqrt((x_cs - x_c)**2 + (y_cs - y_c)**2)
+    # Define the coordinate system in terms of along the wind and across the wind
+    i_along, i_across = np.where(R == np.min(np.abs(R)))
+    R_along = R[i_along[0],:]
+    R_across = R[:,i_across[0]]
     
-    print '[' + dt.now().strftime('%H:%M') + '] Defining the across-wind cross section, 10km downwind of the leeward island edge...'
-    # Define a target distance downwind of the island mid-point
-    r_target = 0. + R_i # in metres, the plus R_i makes this the distance from island edge
+    # Select a chunk from the 'along the wind' direction
+    r_target0 = R_i + 00000.
+    r_target1 = R_i + 72000.
     
-    # Find where the distance to the island is nearest to the target distance
-    R_pos = np.where((R > 0), R, np.nan)
-    iR = np.where(np.abs(R_pos - r_target) == np.nanmin(np.abs(R_pos - r_target)))[0][0]
+    idx0 = np.where(np.abs(R_along - r_target0) == np.min(np.abs(R_along - r_target0)))[0][0]
+    idx1 = np.where(np.abs(R_along - r_target1) == np.min(np.abs(R_along - r_target1)))[0][0] + 1
     
-    x_cs2, y_cs2 = get_cs_coords(x_cs[iR], y_cs[iR], wind_direction+90., X, Y, h = my_h, max_r = 5000.)
-    # get the distance from away from the along-flow cross section
-    R_across = np.sign(y_cs2 - y_cs[iR])*np.sqrt((x_cs2 - x_cs[iR])**2 + (y_cs2 - y_cs[iR])**2)
+    print '[' + dt.now().strftime('%H:%M:%S') + '] Computing mass flux...'
+    # Average in time
+    mf = np.nanmean(rho_swath_nc.variables[rho_key][t_idx,:,:,:]*w_swath_nc.variables[w_key][t_idx,:,:,:], axis = 0)
+    # Average along the CT in the x' direction
+    mass_flux_xs[key] = np.nanmean(mf[:,:,idx0:idx1], axis = 2)
     
-    # now that we have these coordinates for our across trail cross section, we need to interpolate to them
-    # Take the time mean
-    print '[' + dt.now().strftime('%H:%M') + '] Reading the data data...'
-    #rho0 = rho_nc.variables[rho_key][its_rho,:,:,:]
-    w = wind_nc.variables[w_key][its_wind,:,:,:]
-    print '[' + dt.now().strftime('%H:%M') + '] Interpolating rho to theta levels...'
-    rho = np.zeros_like(w)
-    for it in its_rho:
-        rho[its_rho.index(it),:,:,:] = interpolate.interp1d(x = z_rho, y = rho_nc.variables[rho_key][it,:,:,:], axis = 0, fill_value = 'extrapolate')(z_theta)
+    # Grab the landmask before closing
+    lsm = rho_swath_nc.variables['lsm'][:]
     
-    print '[' + dt.now().strftime('%H:%M') + '] Closing netCDF...'
-    rho_nc.close()
-    wind_nc.close()
-    
-    print '[' + dt.now().strftime('%H:%M') + '] Computing mass flux...'
-    mf = np.nanmean(rho*w, axis = 0)
-    
-    print '[' + dt.now().strftime('%H:%M') + '] Interpolating to the across-wind cross section coordinates n = 1...'
-    # interpolate rho to w coordinates
-    mass_flux_xs[key] = bilinear_interpolation(X, Y, mf, x_cs2, y_cs2, kind = 2)
-    count = 1
-    # take the mean of island diameter sized chunk, means ~80 points
-    n_max = 5*int((R_i*2)/my_h)
-    for ir in xrange(1, n_max + 1):
-        count += 1
-        print '[' + dt.now().strftime('%H:%M') + '] Interpolating to the across-wind cross section coordinates n = ' + str(count) + '...'
-        x_cs2, y_cs2 = get_cs_coords(x_cs[iR+ir], y_cs[iR+ir], wind_direction+90., X, Y, h = my_h, max_r = 5000.)
-        mass_flux_xs[key] += bilinear_interpolation(X, Y, mf, x_cs2, y_cs2, kind = 2)
-    
-    mass_flux_xs[key] /= float(count)
-    
-    z_target = 350.
-    print '[' + dt.now().strftime('%H:%M') + '] Plotting the mass flux for ' + key + ' near ' + str(int(z_target)) + ' m...'
-    iz_target = np.where(np.abs(z_theta - z_target) == np.min(np.abs(z_theta - z_target)))[0][0]
-    plt.plot(R_across, mass_flux_xs[key][iz_target,:], label = key)
+    rho_swath_nc.close()
+    w_swath_nc.close()
 
-plt.xlim([-5000, 5000])
-plt.plot([-5000, 5000], [0,0], 'grey', ls = '--')
-plt.title('Mass flux ' + str(int((r_target - R_i)/1000.)) + ' km downwind of leeward side averaged over the 3hrs prior\n to peak heating (9-12pm) for each experiment')
-plt.ylabel('Mass Flux ($kg m^{-2} s^{-1}$)')
-plt.xlabel('Distance from along wind centrepoint (i.e. y$^{\prime}$, m)')
-plt.legend(loc = 0)
-plt.savefig('../mass_flux_' + str(int((r_target - R_i)/1000.)) + 'km_downwind_all_exp.png', dpi = 150)
-#plt.show()
+### Plot the mass flux filled contour, and the mass flux at chosen heights ###
+fig = plt.figure(figsize = (12, 18))
+counter = 1
+# Choose a height to plot
+z_targetBL = 350.
+print '[' + dt.now().strftime('%H:%M:%S') + '] Plotting the mass flux for ' + key + '...'
+iz_targetBL = np.where(np.abs(z_theta - z_targetBL) == np.min(np.abs(z_theta - z_targetBL)))[0][0]
+
+# Choose a height to plot
+z_targetCL = 1500.
+iz_targetCL = np.where(np.abs(z_theta - z_targetCL) == np.min(np.abs(z_theta - z_targetCL)))[0][0]
+
+# Choose a height for plot top
+z_targetPT = 4000.
+iz_targetPT = np.where(np.abs(z_theta - z_targetPT) == np.min(np.abs(z_theta - z_targetPT)))[0][0] + 1
+
+for key in paths.keys():
+    # Plot the mass flux at that height
+    ax0 = fig.add_subplot(len(paths.keys()), 2, counter)
+    ax0.plot(R_across/1000., mass_flux_xs[key][iz_targetBL,:], 'k', label = str(int(z_theta[iz_targetBL])) + ' m', lw = 2)
+    ax0.plot(R_across/1000., mass_flux_xs[key][iz_targetCL,:], 'k--', label = str(int(z_theta[iz_targetCL])) + ' m', lw = 2)
+    ax0.set_xlim([-5, 5])
+    ax0.set_ylim([-0.3, 0.6])
+    ax0.plot([-5,5],[0,0], color = 'grey', linestyle = ':')
+    ax0.set_ylabel('Mass Flux ($kg m^{-2} s^{-1}$)')
+    ax0.set_xlabel('Distance from along wind centrepoint (i.e. y$^{\prime}$, km)')
+    ax0.legend(loc = 'upper left', frameon = False)
+    ax0.set_title(key)
+    
+    counter += 1
+    ax1 = fig.add_subplot(len(paths.keys()), 2, counter, adjustable = 'box', aspect = 1)
+    xs = ax1.contourf(R_across/1000., z_theta[:iz_targetPT]/1000., mass_flux_xs[key][:iz_targetPT,:], cmap = 'bwr', levels = [-0.3, -0.2, -0.1, 0.1, 0.2, 0.3], extend = 'both')
+    ax1.plot(R_across/1000., np.zeros_like(R_across) + z_theta[iz_targetBL]/1000., 'k')
+    ax1.plot(R_across/1000., np.zeros_like(R_across) + z_theta[iz_targetCL]/1000., 'k--')
+    fig.colorbar(xs, ax = ax1)
+    ax1.set_xlabel('Distance from along wind centrepoint (i.e. y$^{\prime}$, km)')
+    ax1.set_ylabel('Height (km)')
+    ax1.set_title(key)
+    
+    counter += 1
+
+fig.suptitle('Mass flux (' + str(int((r_target0 - R_i)/1000.)) + ' - ' + str(int((r_target1 - R_i)/1000.)) + ' km) downwind of lee-side, (9am - 12pm), \nfor each experiment', fontsize = 20)
+fig.tight_layout(rect=[0.0, 0.05, 1.0, 0.95])
+plt.savefig('../mass_flux_' + str(int((r_target0 - R_i)/1000.)) + '-' + str(int((r_target1 - R_i)/1000.)) + 'km_downwind_all_exp.png', dpi = 150)
+plt.show()
+
+
+
+# Plot the LWP at midday for each case
+from STASH_keys import lwp_key
+
+X, Y = np.meshgrid(np.arange(0., 116000., 100.), np.arange(0., 31900., 100.))
+x_prime_p = x_prime%(X.max() + 100.)
+y_prime_p = y_prime%(Y.max() + 100.)
+swath_mask = np.zeros_like(x_prime)
+swath_mask[:,idx0:idx1] += 1.
+fig = plt.figure()
+from math import ceil
+ncol = 2
+for key in paths.keys():
+    lwp_nc = Dataset(paths[key] + 'lwp_00.nc', 'r')
+    lwp_time_key = [tkey for tkey in lwp_nc.variables.keys() if 'min' in tkey][0]
+    
+    # Check if we're dealing with a short simulation
+    if key in short_sims:    
+        l_short = True
+    else:
+        l_short = False
+    
+    # If it is a short simulation, make sure to look for the correct times
+    if l_short:
+        lwp_times = lwp_nc.variables[lwp_time_key][:] + 240.
+    else:
+        lwp_times = lwp_nc.variables[lwp_time_key][:]
+    
+    preday_idx = np.where(lwp_times == 360.)[0][0]
+    midday_idx = np.where(lwp_times == 1080.)[0][0] + 1
+    
+    lwp_data = np.nanmean(lwp_nc.variables[lwp_key][preday_idx:midday_idx,:,:], axis = 0)*1000.
+    
+    n_plot = paths.keys().index(key) + 1
+    ax = fig.add_subplot(ceil(len(paths.keys())/float(ncol)), ncol, n_plot, adjustable = 'box', aspect = 1)
+    lwp_plt = ax.contourf(X/1000., Y/1000., lwp_data, cmap = 'Greys_r', levels = [0, 25, 50, 75, 100, 125, 150, 175, 200], extend = 'max')
+    fig.colorbar(lwp_plt, ax = ax, label = 'LWP (g/m$^{2}$)')
+    # island mask
+    ax.contour(x_prime/1000., y_prime/1000., lsm, colors = ['r'], levels = [1e-16])
+    # main bit
+    ax.contourf(x_prime/1000., y_prime/1000., swath_mask, colors = ['r'], levels = [1e-16, 1e2], alpha = 0.25)
+    # overlap left
+    ax.contourf((x_prime + (X.max() + 100.))/1000., y_prime/1000., swath_mask, colors = ['r'], levels = [1e-16, 1e2], alpha = 0.25)
+    # overlap right
+    ax.contourf((x_prime - (X.max() + 100.))/1000., y_prime/1000., swath_mask, colors = ['r'], levels = [1e-16, 1e2], alpha = 0.25)
+    # overlap top
+    ax.contourf(x_prime/1000., (y_prime + (Y.max() + 100.))/1000., swath_mask, colors = ['r'], levels = [1e-16, 1e2], alpha = 0.25)
+    # overlap bottom
+    ax.contourf(x_prime/1000., (y_prime - (Y.max() + 100.))/1000., swath_mask, colors = ['r'], levels = [1e-16, 1e2], alpha = 0.25)
+    ax.set_xlim([0, X.max()/1000.])
+    ax.set_ylim([0, Y.max()/1000.])
+    ax.set_title('Experiment: ' + key)
+
+plt.savefig('../corresponding_lwp_' + str(int((r_target0 - R_i)/1000.)) + '-' + str(int((r_target1 - R_i)/1000.)) + 'km.png', dpi = 150.)
+plt.show()
+
+
 
