@@ -17,15 +17,17 @@ following the time splits of the original data. Finally, a time-series of the
 evolution in these newly computed parameters is plotted and saved.
 """
 
-path          = raw_input('Input path:')
-ID            = raw_input('Input experiment ID:')
-l_spinup      = bool(int(raw_input('Is this a spinup experiment? (yes = 1, no = 0):')))
-if not l_spinup:
-    l_short   = bool(int(raw_input('Is this a short experiment? (yes = 1, no = 0):')))
-else:
-    l_short   = False
-create_WIND   = bool(int(raw_input('Do you want to regrid the winds? (yes = 1, no = 0):')))
-create_netCDF = bool(int(raw_input('Do you want to create zi_lcl netCDF? (yes = 1, no = 0):')))
+path          = '/nerc/n02/n02/xb899100/CloudTrail/H150E250/' # raw_input('Input path:')
+ID            = 'H150E250' # raw_input('Input experiment ID:')
+l_spinup      = False # bool(int(raw_input('Is this a spinup experiment? (yes = 1, no = 0):')))
+l_short       = False
+#if not l_spinup:
+#    l_short   = bool(int(raw_input('Is this a short experiment? (yes = 1, no = 0):')))
+#else:
+#    l_short   = False
+create_WIND   = False # bool(int(raw_input('Do you want to regrid the winds? (yes = 1, no = 0):')))
+create_netCDF = True # bool(int(raw_input('Do you want to create zi_lcl netCDF? (yes = 1, no = 0):')))
+l_diagnostics = False
 
 print 'path         : ' + path
 print 'ID           : ' + ID

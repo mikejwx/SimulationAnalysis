@@ -40,20 +40,20 @@ def main(path, ID, l_spinup, l_short, create_netCDF):
         if create_netCDF:
             if 'fluxes_' + hour + '.nc' in os.listdir(path):
                 print '[' + dt.now().strftime("%H:%M:%S") + '] Open the netCDF on hour ' + hour
-                print '[' + dt.now().strftime("%H:%M:%S") + '] Open pres_nc'
+                if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Open pres_nc'
                 pres_nc   = Dataset(path + 'fluxes_'+hour+'.nc', 'r')
 
-                print '[' + dt.now().strftime("%H:%M:%S") + '] Open theta_nc'
+                if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Open theta_nc'
                 theta_nc  = Dataset(path + 'bouy_'+hour+'.nc', 'r')
                 
-                print '[' + dt.now().strftime("%H:%M:%S") + '] Open mr_nc'
+                if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Open mr_nc'
                 mr_nc  = Dataset(path + 'mr_'+hour+'.nc', 'r')
                 
-                print '[' + dt.now().strftime("%H:%M:%S") + '] Open wind_nc'
+                if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Open wind_nc'
                 wind_nc  = Dataset(path + 'wind_'+hour+'.nc', 'r')
                 
                 if hour == hours[0]:
-                    print '[' + dt.now().strftime("%H:%M:%S") + '] Grabbing the height coordinates'
+                    if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Grabbing the height coordinates'
                     time_key = [i for i in wind_nc.variables.keys() if 'min' in i][0]
                     z_theta = theta_nc.variables['thlev_zsea_theta'][:]
                     z_rho = pres_nc.variables['rholev_zsea_rho'][:]
@@ -62,17 +62,17 @@ def main(path, ID, l_spinup, l_short, create_netCDF):
                 else:
                     it_start = 0
                 
-                print '[' + dt.now().strftime("%H:%M:%S") + '] Creating zi netCDF'
+                if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Creating zi netCDF'
                 # Create a new netcdf for the boundary layer height each day
                 zi_nc = Dataset(path + 'zi_' + hour + '.nc', 'w')
                 
-                print '[' + dt.now().strftime("%H:%M:%S") + '] Creating dimensions for the netCDF'
+                if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Creating dimensions for the netCDF'
                 # create dimensions for that netcdf
                 time_dim = zi_nc.createDimension('time', wind_nc.variables[time_key][it_start:].shape[0])
                 lat_dim  = zi_nc.createDimension('lat', dim_y)
                 lon_dim  = zi_nc.createDimension('lon', dim_x)
                 
-                print '[' + dt.now().strftime("%H:%M:%S") + '] Creating variables for the netCDF'
+                if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Creating variables for the netCDF'
                 # create variables for each dimension
                 times_var = zi_nc.createVariable('time', np.float64, ('time',))
                 lats_var  = zi_nc.createVariable('latitude', np.float64, ('lat','lon'))
@@ -84,14 +84,14 @@ def main(path, ID, l_spinup, l_short, create_netCDF):
                 if mcl_key in mr_nc.variables.keys():
                     ctz_var   = zi_nc.createVariable(ctz_key, np.float64, ('time', 'lat', 'lon'))
                 
-                print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the dimension variables'
+                if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the dimension variables'
                 # populate the dimension variables
                 times_var[:] = theta_nc.variables[time_key][it_start:]*1.
                 lats_var[:]  = theta_nc.variables['latitude_t'][:]*1.
                 lons_var[:]  = theta_nc.variables['longitude_t'][:]*1.
                 
                 for it in xrange(it_start, len(theta_nc.variables[time_key][:])):
-                    print '[' + dt.now().strftime("%H:%M:%S") + '] Working on time slice number ' + str(it) + ', for netCDF hour ' + str(hour)
+                    if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Working on time slice number ' + str(it) + ', for netCDF hour ' + str(hour)
                     if not l_spinup:
                         if type(theta_nc.variables[q_key][it,:,:,:]) == np.ma.core.MaskedArray:
                             q_data = theta_nc.variables[q_key][it,:,:,:].data
@@ -101,11 +101,11 @@ def main(path, ID, l_spinup, l_short, create_netCDF):
                     else:
                         theta_v = theta_nc.variables[theta_key][it,:,:,:]*(1. + 0.608*mr_nc.variables[q_key][it,:,:,:])
                     # populate the boundary layer height variable
-                    print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating zi0...'
+                    if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating zi0...'
                     zi0_var[it-it_start,:,:] = zi(theta_v, z_theta)[:]
-                    print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating zi1...'
+                    if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating zi1...'
                     zi1_var[it-it_start,:,:] = find_h(theta_v, wind_nc.variables[u_key][it,:,:,:], wind_nc.variables[v_key][it,:,:,:], z_theta)
-                    print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating lcl...'
+                    if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating lcl...'
                     if not l_spinup:
                         lcl_var[it-it_start,:,:] = lcl(theta_nc.variables[temp_key][it,0,:,:]*1.,theta_nc.variables[q_key][it,0,:,:]*1., pres_nc.variables[pres_key][it,:,:,:]*1., z_theta)
                     else:
@@ -113,11 +113,11 @@ def main(path, ID, l_spinup, l_short, create_netCDF):
                         temperature = PTtoTemp(theta_nc.variables[theta_key][it,0,:,:]*1., pressure[0,:,:], t_units = 'K', p_units = 'Pa')
                         lcl_var[it-it_start,:,:] = lcl(temperature,mr_nc.variables[q_key][it,0,:,:]*1., pressure, z_theta)
                     if mcl_key in mr_nc.variables.keys():
-                        print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating ctz...'
+                        if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Calculating ctz...'
                         ctz_var[it-it_start,:,:] = get_CTZ(mr_nc.variables[mcl_key][it,:,:,:], z_theta)
                 # close the new netcdf
                 zi_nc.close()
-                print '[' + dt.now().strftime("%H:%M:%S") + '] Closing the netCDF'
+                if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Closing the netCDF'
                 theta_nc.close()
                 pres_nc.close()
                 mr_nc.close()

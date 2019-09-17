@@ -18,9 +18,6 @@ def main(data_path, ID, UG):
     from analysis_tools import RDP, find_h, lcl, get_CC, get_CTZ, regrid
     from SkewT_archer import getDew, PTtoTemp, getQ, Rd, cpd, g
     
-    # Toggle print statements
-    l_verbose = True
-    
     # Toggle thermodynamics
     l_thermodynamics = 1
     
@@ -41,7 +38,7 @@ def main(data_path, ID, UG):
     if l_thermodynamics:
         print 'Computing intitial thermodynamic conditions.'
         for day in days:
-            if l_verbose: print 'Starting day: ' + day
+            if l_diagnostics: print 'Starting day: ' + day
             
             # Open the netCDF
             bouy_nc   = Dataset(data_path + 'bouy_' + day + '.nc', 'r')
@@ -59,7 +56,7 @@ def main(data_path, ID, UG):
             v_regrid        = regrid(bouy_nc, v_nc, v_key)
             
             if day == '01':
-                if l_verbose: print 'Initialising arrays for data in time and height'
+                if l_diagnostics: print 'Initialising arrays for data in time and height'
                 temperature = np.zeros((theta_data.shape[0]*ndays, theta_data.shape[1]))
                 pressure_rg = np.zeros((theta_data.shape[0]*ndays, theta_data.shape[1]))
                 dewpoint_rg = np.zeros((theta_data.shape[0]*ndays, theta_data.shape[1]))
@@ -96,7 +93,7 @@ def main(data_path, ID, UG):
         times = np.arange(1., 14400.*len(days), 10.)/60.
         
         dt_i = theta_data.shape[0] # Number of time steps per day
-        if l_verbose: print 'Starting Temperature.'
+        if l_diagnostics: print 'Starting Temperature.'
         with open('../InitialFields_Temperature_' + ID + '.txt', 'w') as my_file:
             my_file.write('Specify initial temperature profiles\n')
             
@@ -123,11 +120,11 @@ def main(data_path, ID, UG):
                 my_file.write(str(theta_init[k]) + ',')
             my_file.write(str(theta_init[-1]) + '\n')
             
-            if l_verbose:
+            if l_diagnostics:
                 plt.plot(theta_init, theta_levels)
                 plt.show()
         
-        if l_verbose: print 'Finished Temperature\n Starting Moisture.'
+        if l_diagnostics: print 'Finished Temperature\n Starting Moisture.'
         with open('../InitialFields_Moisture_' + ID + '.txt', 'w') as my_file:
             my_file.write('Specify initial moisture profiles\n')
             
@@ -154,11 +151,11 @@ def main(data_path, ID, UG):
                 my_file.write(str(mv_init[k]) + ',')
             my_file.write(str(mv_init[-1]) + '\n')
             
-            if l_verbose:
+            if l_diagnostics:
                 plt.plot(mv_init, mv_levels)
                 plt.show()
         
-        if l_verbose: print 'Finished Moisture.'
+        if l_diagnostics: print 'Finished Moisture.'
     
     ### Updated from 'hodographs.py' ###
     # Requires zi_lcl.py to be run on our simulation to create zi_DD.nc files
@@ -167,7 +164,7 @@ def main(data_path, ID, UG):
         zi0_key = 'boundary layer depth'
         for day in days:
             # On the first day
-            if l_verbose: print 'Starting day: ' + day
+            if l_diagnostics: print 'Starting day: ' + day
             
             # Open the netCDF for the horizontal winds
             u_nc = Dataset(data_path + 'u_' + day + '.nc', 'r')
@@ -212,7 +209,7 @@ def main(data_path, ID, UG):
         u_balanced = np.nanmean([interpolate.interp1d(z_rho/zi[timestep], u_mean[timestep+1,:], fill_value = 'extrapolate')(z_rho/target_zi) for timestep in xrange(-4*dt_i, u_mean.shape[0]-1)], axis = 0)
         v_balanced = np.nanmean([interpolate.interp1d(z_rho/zi[timestep], v_mean[timestep+1,:], fill_value = 'extrapolate')(z_rho/target_zi) for timestep in xrange(-4*dt_i, v_mean.shape[0]-1)], axis = 0)
 
-        if l_verbose: print 'Weighting winds by boundary layer depth'
+        if l_diagnostics: print 'Weighting winds by boundary layer depth'
         z_balanced = z_rho*1.
         
         ### Blended transition from mean in the boundary layer to geostrophic wind above ###
@@ -227,7 +224,7 @@ def main(data_path, ID, UG):
         # Create a v-profile at the same heights as the u-profile
         v_u = interpolate.interp1d(z_balanced, v_balanced_new, fill_value = 'extrapolate')(z_u)
 
-        if l_verbose: print 'Making the wind initial conditions.'
+        if l_diagnostics: print 'Making the wind initial conditions.'
         n_uvlev = len(z_u)
         with open('../InitialFields_Wind_' + ID + '.txt', 'w') as my_new_file:
             my_new_file.write('Specify initial wind profiles.\n')
@@ -254,7 +251,7 @@ def main(data_path, ID, UG):
                 my_new_file.write(str(round(v_u[k],2))+',')
             my_new_file.write(str(round(v_u[-1],2)))
         
-        if l_verbose:
+        if l_diagnostics:
             plt.plot(u_u, z_u)
             plt.plot(v_u, z_u)
             plt.show()
@@ -263,7 +260,7 @@ def main(data_path, ID, UG):
     if l_fluxes:
         print 'Computing balanced surface fluxes.'
         for day in days:
-            if l_verbose: print 'STARTING: day ' + day
+            if l_diagnostics: print 'STARTING: day ' + day
             fluxes_nc = Dataset(data_path + 'fluxes_' + day + '.nc', 'r')
             time_key = [key for key in fluxes_nc.variables.keys() if ('hr' in key) or ('min' in key)][0]
             
@@ -279,7 +276,7 @@ def main(data_path, ID, UG):
                 times = np.concatenate((times, fluxes_nc.variables[time_key][:]*1.), axis = 0)
             fluxes_nc.close()
         
-        if l_verbose:
+        if l_diagnostics:
             plt.plot(LHF, label = 'LHF')
             plt.plot(SHF, label = 'SHF')
             plt.legend()
