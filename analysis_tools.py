@@ -10,6 +10,57 @@ from multiprocessing import Pool
 #                                                                              #
 ################################################################################
 
+def downwind_rectangle(wind_dir, x_c, y_c, X, Y, distance, half_width):
+    """
+    Defines a line to the edge of the given domain downwind. Then expands that
+    line to the left and right to get a rectangular region downwind. The line is
+    downwind of point x_c, y_c.
+    
+    Finally redefines the coordinate system into x', y' directions such that x'
+    is in the along-line direction (increasing away from x_c, y_c), and y' is in
+    the across-line direction, zero if exactly on the line, and increasing to 
+    the right of the line with respect to the downwind direction.
+    ----------------------------------------------------------------------------
+    wind_dir   -> wind direction in degrees
+    x_c, y_c   -> the x and y coordinates of the point of interest
+    X, Y       -> the X and Y coordinates of the grid of interest, 2D arrays
+    distance   -> the distance downwind that we're interested in
+    half_width -> the half width of the rectangle i.e. the max distance in y'
+    """
+    ############################################################################
+    # Find the equation for the line between the point of interest and the 
+    # domain edge
+    ############################################################################
+    # Assume that the wind is from the northeastern quadrant
+    # Find the distance to the domain edge
+    h = x_c/np.sin(wind_dir*np.pi/180.0)
+    
+    # Use that distance, h, to find the slop of the line:
+    m = np.sqrt(h**2.0 - x_c**2.0)/x_c
+    
+    # Use that distance, h, again to find the y-intercept
+    c = y_c - np.sqrt(h**2.0 + x_c**2.0)
+    
+    # Assume the line is of form y = mx + c
+    x = np.arange(0.0, distance + 0.1, X[0,1] - X[0,0])
+    y = m*x + c
+    
+    ############################################################################
+    # Compute the distance from that line at every point
+    ############################################################################
+    d2l = ((X*c)/s - (c*Y)/m + (c**2.0)/m)/(c*((1.0/(m**2)) + 1.0)**0.5)
+    
+    # Create a mask of points within half_width of the line
+    mask = np.where(d2l <= half_width, 1.0, 0.0)
+    
+    # Create a new coordinate system; cartesian -> polar, polar -> cartesian
+    R     = np.sqrt((X - x_c)**2.0 + (Y - y_c)**2.0)
+    theta = np.arccos((X - x_c)/R)*180.0/np.pi
+    y_prime = d2l*np.where(theta > wind_dir + 180.0, 1.0, -1.0)
+    x_prime = np.sqrt(R**2.0 + y_prime**2.0)
+    
+    return mask, y_prime, x_prime
+
 def zi(theta_v, z):
     """
     Function to calculate the mixed layer depth as a function of the virtual
