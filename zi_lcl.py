@@ -6,7 +6,7 @@ Then compute the domain mean of these quantities and plot their time series.
 """
 
 
-def main(path, ID, l_spinup, l_short, create_netCDF):
+def main(path, ID, l_spinup, l_short, create_netCDF, l_diagnostics):
     import numpy as np
     import matplotlib.pyplot as plt
     #plt.switch_backend('agg')
@@ -87,8 +87,11 @@ def main(path, ID, l_spinup, l_short, create_netCDF):
                 if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the dimension variables'
                 # populate the dimension variables
                 times_var[:] = theta_nc.variables[time_key][it_start:]*1.
-                lats_var[:]  = theta_nc.variables['latitude_t'][:]*1.
-                lons_var[:]  = theta_nc.variables['longitude_t'][:]*1.
+                if len(theta_nc.variables['latitude_t'][:].shape) == 2:
+                    lats_var[:]  = theta_nc.variables['latitude_t'][:]*1.
+                    lons_var[:]  = theta_nc.variables['longitude_t'][:]*1.
+                else:
+                    lons_var[:], lats_var[:] = np.meshgrid(theta_nc.variables['longitude_t'][:], theta_nc.variables['latitude_t'][:])
                 
                 for it in xrange(it_start, len(theta_nc.variables[time_key][:])):
                     if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Working on time slice number ' + str(it) + ', for netCDF hour ' + str(hour)

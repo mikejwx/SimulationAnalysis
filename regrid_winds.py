@@ -9,7 +9,7 @@ Creates a netCDF for three-hourly time chunks containing u, v, and w wind
 components in the theta coordinate system.
 """
 
-def main(path, l_spinup, l_short):
+def main(path, l_spinup, l_short, l_diagnostics):
     import numpy as np
     import matplotlib.pyplot as plt
     from netCDF4 import Dataset
@@ -71,8 +71,11 @@ def main(path, l_spinup, l_short):
             # populate the dimension variables
             times_var[:] = w_nc.variables[time_key][:]
             z_var[:]     = w_nc.variables['thlev_zsea_theta'][:]
-            lats_var[:]  = w_nc.variables['latitude_t'][:]
-            lons_var[:]  = w_nc.variables['longitude_t'][:]
+            if len(w_nc.variables['latitude_t'][:].shape) != 2:
+                lons_var[:], lats_var[:] = np.meshgrid(w_nc.variables['longitude_t'][:], w_nc.variables['latitude_t'][:])
+            else:
+                lats_var[:]  = w_nc.variables['latitude_t'][:]
+                lons_var[:]  = w_nc.variables['longitude_t'][:]
             
             if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the wind variables'
             if l_diagnostics: print '[' + dt.now().strftime("%H:%M:%S") + '] Regridding u-winds'
