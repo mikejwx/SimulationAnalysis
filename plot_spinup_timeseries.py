@@ -5,6 +5,7 @@ from STASH_keys import zi_new_key, rho_key, u_key, v_key, shf_key, lhf_key
 from SkewT_archer import Lv
 days = ["{0:02d}".format(day) for day in range(1, 11)]
 
+#path = '/work/n02/n02/xb899100/cylc-run/u-bn460/share/data/history/'
 path = '/nerc/n02/n02/xb899100/CloudTrail/Spinup_Control/'
 print path
 spinup_data = {}
@@ -85,13 +86,15 @@ axb.text(0.5, 825, 'b)')
 
 axc.plot(spinup_data['time']/1440.0, spinup_data['shf'], 'r', lw = 2, label = 'SHF')
 axc.plot([0], [0], 'b', label = 'LHF') # just a point so that the item can be added to the legend
-axc.set_ylabel(u'Sensible Heat Flux (W m$^{-2}$)')
+axc.set_ylabel(u'Sensible Heat Flux (W m$^{-2}$)', color = 'red')
 axc.set_xlabel('Time (days)')
 axc.text(0.5, 17.5, 'c)')
+axc.set_yticklabels(range(0, 21, 5), color = 'red')
 
 axd = axc.twinx()
 axd.plot(spinup_data['time']/1440.0, spinup_data['lhf'], 'b', lw = 2)
-axd.set_ylabel(u'Latent Heat Flux (W m$^{-2}$)')
+axd.set_ylabel(u'Latent Heat Flux (W m$^{-2}$)', color = 'b')
+axd.set_yticklabels(range(150, 230, 10), color = 'b')
 axc.plot([6.0, 6.0], [0, 20], color = 'grey', ls = ':')
 axc.legend(loc = 1, frameon = False)
 axc.set_ylim([0, 20])

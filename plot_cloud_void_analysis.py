@@ -10,7 +10,7 @@ from STASH_keys import theta_key, q_key, w_key, u_key, v_key, zi_new_key, lcl_ke
 # point of the surface warm plume
 
 ### Read some data from the reference experiment ###
-path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+path = '/nerc/n02/n02/xb899100/CloudTrail/Control_0800m_HRIC_INV/'
 my_data = {}
 # Read thermodynamic data
 with Dataset(path + 'bouy_09.nc', 'r') as bouy_nc:
@@ -32,13 +32,14 @@ with Dataset(path + 'zi_09.nc', 'r') as zi_nc:
     my_data[lcl_key]    = zi_nc.variables[lcl_key][:]*1.
 
 # Create the horizontal coordinate system and define the island
-x, y = np.meshgrid(np.arange(my_data[theta_key].shape[3])*100.0, np.arange(my_data[theta_key].shape[2])*100.0)
+dx = 800.0
+x, y = np.meshgrid(np.arange(my_data[theta_key].shape[3])*dx, np.arange(my_data[theta_key].shape[2])*dx)
 
 # Radius of the island, m
 island_area = 50.0 # km^2
 R_i = 1000.0*np.sqrt(island_area/np.pi)
-x_c = 100000.0 + R_i
-y_c = 4*R_i
+x_c = 108000.0#100000.0 + R_i
+y_c = 16000.0#4*R_i
 
 # Distance from the island, m
 R = np.sqrt((x - x_c)**2 + (y - y_c)**2)
@@ -55,7 +56,7 @@ wind_spd, wind_dir = fromComponents(U_mean, V_mean)
 mask, y_prime, x_prime = downwind_rectangle(wind_dir, x_c, y_c, x, y, R_i, dist_0 = -4*R_i, dist_1 = 80000.0, half_width = 5000.0)
 
 # Compute the potential temperature cross section
-dx = 100.0
+
 x_prime_new  = np.arange(-4*R_i, 80000.1, dx)
 theta_cs     = np.array([[np.nanmean(np.where((x_0 <= x_prime)*(x_prime <= (x_0 + dx)), mask*my_data[theta_key][it,:,:,:], np.nan), axis = (1, 2)) for x_0 in x_prime_new] for it in [-1]]) # array[t, x', z]
 w_cs         = np.array([[np.nanmean(np.where((x_0 <= x_prime)*(x_prime <= (x_0 + dx)), mask*my_data[w_key][it,:,:,:], np.nan), axis = (1, 2)) for x_0 in x_prime_new] for it in [-1]])
@@ -64,7 +65,7 @@ lcl_cs      = np.transpose(np.array([[np.nanmean(np.where((x_0 <= x_prime)*(x_pr
 
 # Compute the anomaly from the surface parcel ascent
 theta_parcel_cs = np.transpose(theta_cs[0,:,:]) - theta_cs[0,:,0]
-theta_parcel_anom_cs = np.transpose(np.transpose(theta_parcel_cs) - theta_parcel_cs.mean(axis = 1))
+theta_parcel_anom_cs = np.transpose(np.transpose(theta_parcel_cs) - np.nanmean(theta_parcel_cs, axis = 1))
 xp, z = np.meshgrid(x_prime_new, my_data['z'])
 
 # make the plot
@@ -86,7 +87,7 @@ axb.plot(x_prime_new/1000., zi_cs/1000., 'k')
 axb.set_ylim([0, 2.5])
 axb.set_ylabel('Height (km)')
 axb.set_xlabel('Distance Downwind (km)')
-plt.savefig('../cloud_void_analysis.png', dpi = 150, bbox_inches = 'tight')
+plt.savefig('../cloud_void_analysis_0800m_HRIC_INV.png', dpi = 150, bbox_inches = 'tight')
 plt.show()
 
 # make a separate plot to show the vertical velocities

@@ -6,12 +6,13 @@ from analysis_tools import downwind_rectangle, fromComponents
 from scipy import interpolate, integrate
 
 # Read the data
-path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+path = '/nerc/n02/n02/xb899100/CloudTrail/Control_0800m/'
+label = path.split('/')[-2]
 my_data = {}
 with Dataset(path + 'lwp_00.nc', 'r') as lwp_nc:
     my_data[lwp_key] = lwp_nc.variables[lwp_key][:]*1.
     times_key = [tkey for tkey in lwp_nc.variables.keys() if 'min' in tkey][0]
-    my_data['lwp_times'] = lwp_nc.variables[times_key][:]*1.
+    my_data['lwp_times'] = lwp_nc.variables[times_key][:]*1. + 240.
     
 
 with Dataset(path + 'wind_00.nc', 'r') as wind_nc:
@@ -36,15 +37,16 @@ V_mean = integrate.trapz(x = z_int, y = V_fun)/z_int.max()
 wind_spd, wind_dir = fromComponents(U_mean, V_mean)
 
 # Define the original coordinate system
-x, y = np.meshgrid(np.arange(my_data[lwp_key].shape[2])*100.0, np.arange(my_data[lwp_key].shape[1])*100.0)
+dx = 800.0
+x, y = np.meshgrid(np.arange(my_data[lwp_key].shape[2])*dx, np.arange(my_data[lwp_key].shape[1])*dx)
 island_area = 50.0
 island_radius = np.sqrt(island_area/np.pi)*1000.0
-x_c = 100000.0 + island_radius
-y_c = 4*island_radius
+x_c = 108000.0 #100000.0 + island_radius
+y_c = 16000.0 #4*island_radius
 R = np.sqrt((x - x_c)**2 + (y - y_c)**2)
 
 # Define the downwind rectangle
-mask, y_prime, x_prime = downwind_rectangle(wind_dir, x_c, y_c, x, y, island_radius, dist_0 = -4*island_radius, dist_1 = 100000.0, half_width = 3000.0)
+mask, y_prime, x_prime = downwind_rectangle(wind_dir, x_c, y_c, x, y, island_radius, dist_0 = -20000.0, dist_1 = 100000.0, half_width = 3000.0)
 
 # Compute the daytime cloud frequency
 start = np.where(my_data['lwp_times'] == 360.)[0][0]
@@ -53,7 +55,7 @@ end   = np.where(my_data['lwp_times'] == 1080.)[0][0] + 1
 cloud_frequency = np.nanmean(np.where(my_data[lwp_key][start:end,:,:] > 0, 1.0, 0.0), axis = 0)
 cloud_frequency_before = np.nanmean(np.where(my_data[lwp_key][:(start+1),:,:] > 0, 1.0, 0.0), axis = 0)
 # Collapse cloud frequency from array[x_prime, y_prime] -> array[x_prime]
-dx = 100.0
+
 cloud_frequency_x = np.array([np.nanmean(np.where((x_0 <= x_prime)*(x_prime <= (x_0 + dx)), mask*cloud_frequency, np.nan)) for x_0 in np.arange(-4*island_radius, 100000.1, dx)])
 x_prime_new = np.arange(-4*island_radius, 100000.1, dx)
 
@@ -81,6 +83,6 @@ axb.text((5./115.)*116, (0.425/0.5)*32, 'b)', bbox = dict(ec = 'None',fc = 'w', 
 axb.set_ylabel('y (km)')
 axb.set_xlabel('x (km)')
 
-plt.savefig('../cloud_void_cloud_frequency.png', dpi = 150, bbox_inches = 'tight')
+plt.savefig('../cloud_void_cloud_frequency_' + label + '.png', dpi = 150, bbox_inches = 'tight')
 plt.show()
 
