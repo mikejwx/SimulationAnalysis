@@ -20,12 +20,12 @@ from analysis_tools import send_email
 ##############################################################
 
 ntimes = 144
-nx  = 1160
-ny  = 319
+nx  = 74*2*2*2
+ny  = 20*2*2*2
 nz  = 127
 dtt = 2
 dt  = 3
-dx  = 100
+dx  = 1600/2/2/2
 dz  = 40
 
 ud_thres = 0.0
@@ -49,7 +49,7 @@ nameoption = ['plume_only', 'clw_only', 'plume_pls_clw', 'clw_pls_plume', 'plume
 nanum = 1
 
 ## set path for outputing the results
-resultpath_base = '/nerc/n02/n02/xb899100/CloudTrail/Control/CT_results/'
+resultpath_base = '/nerc/n02/n02/xb899100/CloudTrail/Control_0200m_HRIC_INV/CT_results/'
 
 if len(pickup_ud)==3:
     resultpath = resultpath_base + nameoption[nanum] + "/test_ud_" + str(pickup_ud[0]) + "_"+str(pickup_ud[1]) + "_" + str(pickup_ud[2]) + "/"
@@ -142,7 +142,7 @@ mt_ud_stat         = pickle.load(open(resultpath+'/qt_ud_udthres_'+str(ud_thres)
 mt_p_ud_stat       = pickle.load(open(resultpath+'/qt_p_ud_udthres_'+str(ud_thres)+'_'+str(pickup_ud[0])+'.pkl','rb'))
 
 ## plot
-my_hgts = [1500, 2000, 3000] 
+my_hgts = [1500] 
 kk_list = [np.where(np.abs(hgt-my_hgt) == np.min(np.abs(hgt-my_hgt)))[0][0] for my_hgt in my_hgts]
 
 ## basic setup for composite
@@ -362,8 +362,9 @@ for kk in kk_list:
     axes.set_xlim([-12, 12])
     axes.set_xticks([-12, -8, -4, 0, 4, 8, 12])
     axes.set_xticklabels(['-1.5 L', '-L', '-0.5 L', 'C', '0.5 L', 'L', '1.5 L'])
+    axes.set_ylim([-0.25, 1.25])
     plt.savefig(figurepath + 'cloud_slice_at' + str(int(round(hgt[kk],0))) + '.png', dpi = 150, bbox_inches = 'tight')
     plt.show()
 
-send_email('Plotting cloud slices complete.', 'plot_cld_composite.py --> complete!', attachments = [figurepath + 'cloud_slice_at' + str(int(round(hgt[kk],0))) + '.png' for kk in kk_list])
+send_email('Plotting cloud slices complete.', "figurepath + 'cloud_slice_at' + str(int(round(hgt[kk],0))) + '.png'" + '\nplot_cld_composite.py --> complete!', attachments = [figurepath + 'cloud_slice_at' + str(int(round(hgt[kk],0))) + '.png' for kk in kk_list])
 
