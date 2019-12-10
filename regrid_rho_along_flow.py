@@ -3,10 +3,13 @@ Code to regrid data from the original cartesian coordinates to coordinates
 which follow the horizontal mean wind direction.
 """
 import numpy as np
+<<<<<<< HEAD
 
 import matplotlib
 #matplotlib.use('Agg') # required because the compute nodes have no graphical libraries installed
 
+=======
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 import matplotlib.pyplot as plt
 from scipy import interpolate, integrate
 from analysis_tools import fromComponents, get_cs_coords, bilinear_interpolation, in_plane_winds, getML_mean, regrid, send_email
@@ -35,7 +38,11 @@ from STASH_keys import u_key, v_key, zi_new_key, rho_key, w_key
 
 # Get a list of all of the wind nc files
 print '[' + dt.now().strftime("%H:%M:%S") + '] Determining the swath orientation'
+<<<<<<< HEAD
 my_path = '/nerc/n02/n02/xb899100/CloudTrail/Control_1600m/'
+=======
+my_path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 my_files = os.listdir(my_path)
 wind_files = [my_file for my_file in my_files if 'wind' in my_file]
 zi_files = [my_file for my_file in my_files if 'zi' in my_file]
@@ -93,11 +100,18 @@ x_c = 100000.0 + R_i           # x-coordinate for the island centre
 y_c = 4*R_i                    # y-coordinate for the island centre
 
 # Create the coordinate system for this data
+<<<<<<< HEAD
 dx = 1600.0
 X, Y = np.meshgrid(np.arange(74)*dx, np.arange(20)*dx)
 
 # Get coordinates of the cross section along the swath
 h = dx*1. # Resolution in the along-swath direction
+=======
+X, Y = np.meshgrid(np.arange(0., 116000., 100.), np.arange(0., 31900., 100.))
+
+# Get coordinates of the cross section along the swath
+h = 100. # Resolution in the along-swath direction
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 x_cs, y_cs = get_cs_coords(x_c, y_c, orientation_in, X, Y, h = h)
 
 # Truncate to one domain - i.e. remove points that exit a boundary
@@ -116,7 +130,11 @@ R = -np.array([np.round(x, 0) for x in np.sign(x_cs - x_c)*np.sqrt((x_cs - x_c)*
 
 # Define how wide and long we want the swath to be
 swath_width  = 10000.
+<<<<<<< HEAD
 res = dx*1. # Resolution in the across-swath direction
+=======
+res = 100. # Resolution in the across-swath direction
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 
 # Use multiprocessing to quickly compute all the coordinates within the swath
 p = Pool()
@@ -147,10 +165,15 @@ a land mask layer in the new coordinate system.
 
 # Use the naming convention for the input files
 if l_short:
+<<<<<<< HEAD
     print '[' + dt.now().strftime("%H:%M:%S") + '] This is a short experiment'
     hours = ["{0:02d}".format(h) for h in xrange(0, 16, 4)]
 else:
     print '[' + dt.now().strftime("%H:%M:%S") + '] This is a long experiment'
+=======
+    hours = ["{0:02d}".format(h) for h in xrange(0, 16, 4)]
+else:
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     hours = ["{0:02}".format(h) for h in xrange(0, 24, 3)]
 
 def createSwathNC(hour):
@@ -166,9 +189,15 @@ def createSwathNC(hour):
     
     input_data = regrid(target_grid_nc, input_nc, rho_key)
     
+<<<<<<< HEAD
     time_key = [i for i in target_grid_nc.variables.keys() if 'min' in i][0]
     # Initialise the any timeseries arrays
     input_times = target_grid_nc.variables[time_key][:]
+=======
+    time_key = [i for i in input_nc.variables.keys() if 'min' in i][0]
+    # Initialise the any timeseries arrays
+    input_times = input_nc.variables[time_key][:]
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     output_var  = np.zeros((input_data.shape[0], input_data.shape[1], swath_x.shape[0], swath_x.shape[1]))
     for it in xrange(input_data[:].shape[0]):
         output_var[it,:,:,:] = bilinear_interpolation(X, Y, input_data[it,:,:,:], swath_x.flatten(), swath_y.flatten(), kind = 2).reshape((len(z), int(swath_width/res + 1), len(R)))
@@ -185,10 +214,17 @@ def createSwathNC(hour):
     
     print '[' + dt.now().strftime("%H:%M:%S") + '] Creating dimensions for the netCDF'
     # Create dimensions for that netcdf
+<<<<<<< HEAD
     time_dim = output_nc.createDimension(time_key, output_var.shape[0])
     z_dim    = output_nc.createDimension('thlev_zsea_theta', output_var.shape[1])
     y_dim    = output_nc.createDimension('y_prime', output_var.shape[2])
     x_dim    = output_nc.createDimension('x_prime', output_var.shape[3])
+=======
+    time_dim = output_nc.createDimension(time_key, input_nc.variables[rho_key][:].shape[0])
+    z_dim    = output_nc.createDimension('thlev_zsea_theta', output_var.shape[1])
+    y_dim    = output_nc.createDimension('y_prime', swath_y.shape[0])
+    x_dim    = output_nc.createDimension('x_prime', swath_x.shape[1])
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     
     print '[' + dt.now().strftime("%H:%M:%S") + '] Creating variables for the netCDF'
     # Create variables for each dimension
@@ -204,7 +240,11 @@ def createSwathNC(hour):
     print '[' + dt.now().strftime("%H:%M:%S") + '] Populating the dimension variables'
     # populate the dimension variables
     times_var[:] = input_times
+<<<<<<< HEAD
     z_var[:]     = target_grid_nc.variables['thlev_zsea_theta'][:]
+=======
+    z_var[:]     = input_nc.variables['thlev_zsea_theta'][:]
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     ys_var[:]    = swath_y[:]
     xs_var[:]    = swath_x[:]
     
@@ -221,16 +261,27 @@ def createSwathNC(hour):
     print '[' + dt.now().strftime("%H:%M:%S") + '] Complete.'
 
 # Create the land-sea mask interpolated field
+<<<<<<< HEAD
 print '[' + dt.now().strftime("%H:%M:%S") + '] Creating the interpolated land sea mask'
 lsm_nc         = Dataset('/work/n02/n02/xb899100/island_masks/lsm50_1600m.nc', 'r')
 lsm_var_interp = bilinear_interpolation(X, Y, lsm_nc.variables['lsm'][0,:,:,:], swath_x.flatten(), swath_y.flatten(), kind = 2).reshape((int(swath_width/res + 1), len(R)))
 lsm_nc.close()
 
 print '[' + dt.now().strftime("%H:%M:%S") + '] Starting the regridding for rho'
+=======
+lsm_nc         = Dataset('/work/n02/n02/xb899100/island_masks/lsm50.nc', 'r')
+lsm_var_interp = bilinear_interpolation(X, Y, lsm_nc.variables['lsm'][0,:,:,:], swath_x.flatten(), swath_y.flatten(), kind = 2).reshape((int(swath_width/res + 1), len(R)))
+lsm_nc.close()
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 p = Pool(processes = len(hours))
 p.map(createSwathNC, hours)
 p.close()
 p.join()
 
+<<<<<<< HEAD
 send_email(message = 'Completed rho swath for ' + my_path.split('/')[-2] + ' experiment.', subject = 'regrid_rho_along_flow.py', attachments = [''], isAttach = False)
+=======
+send_email(message = 'Completed rho swath for ' + my_path.split('/')[-1] + ' experiment.', subject = 'regrid_rho_along_flow.py', attachments = [''], isAttach = False)
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 

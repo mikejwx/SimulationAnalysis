@@ -25,7 +25,11 @@ def cloud_edge(cld_indices, mask, wrap=True, diagonal=False):    # detect cloud 
     cld_pos = []
     for npts in range(0, len(cld_indices[0])):
         cld_pos += [(cld_indices[0][npts], cld_indices[1][npts])]
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     cld_edge = []
     cld_in   = []
     for ii, jj in cld_pos:
@@ -34,26 +38,46 @@ def cloud_edge(cld_indices, mask, wrap=True, diagonal=False):    # detect cloud 
             if not wrap:
                 if it < 0 or it >= mask.shape[0] or \
                                 jt < 0 or jt >= mask.shape[1]:
+<<<<<<< HEAD
                     # if the point is outside the edge of the domain
+=======
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
                     continue
                 else:
                     it %= mask.shape[0]
                     jt %= mask.shape[1]
+<<<<<<< HEAD
             
             if (it, jt) not in cld_pos:
                 fault += 1
             
         if diagonal:
             if fault > 0 and fault < 8:
+=======
+
+            if (it, jt) not in cld_pos:
+                fault += 1
+
+        if diagonal:
+            if fault>0 and fault <8:
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
                cld_edge += [(ii, jj)]
             else: 
                cld_in   += [(ii, jj)]
         else:
+<<<<<<< HEAD
             if fault > 0 and fault < 4:
                cld_edge += [(ii, jj)]
             else:
                cld_in   += [(ii, jj)]
         
+=======
+            if fault>0 and fault <4:
+               cld_edge += [(ii, jj)]
+            else:
+               cld_in   += [(ii, jj)]
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     return cld_edge, cld_in
 
 

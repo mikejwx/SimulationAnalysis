@@ -38,6 +38,11 @@ def my_streamplot(ax, Xi, Yi, Ui, Vi, colori, densityi):
     
     ax.streamplot(Xo, Yo, Uo, Vo, color = colori, density = densityi)
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 hours = ['09']
 
 IDs = ['Control']

@@ -2,7 +2,11 @@
 Functions to coarse grain simulations in whole-number multiples of the input
 grid-spacing. Only horizontal coarse-graining is supported.
 """
+<<<<<<< HEAD
 import numpy as np
+=======
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 def coarse_grain(input_data, reduce_y, reduce_x, operation = np.nanmean, l_periodic = True):
     """
     input_data = input data array, must have the following dimensions
@@ -15,6 +19,10 @@ def coarse_grain(input_data, reduce_y, reduce_x, operation = np.nanmean, l_perio
     ----------------------------------------------------------------------------
     output_data = coarse grained array to be output
     """
+<<<<<<< HEAD
+=======
+    import numpy as np
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     # Determine the shape of the input data and behave differently for different
     # data shapes
     in_shape = input_data.shape
@@ -31,23 +39,38 @@ def coarse_grain(input_data, reduce_y, reduce_x, operation = np.nanmean, l_perio
     elif len(in_shape) == 3:
         # This is a 3D array, assume f[(t/z), y, x]
         output_data = np.zeros_like(input_data[:,::reduce_y, ::reduce_x])
+<<<<<<< HEAD
         for j in xrange(output_data.shape[1]):
             for i in xrange(output_data.shape[2]):
                 j_in = [(j*reduce_y+J)%input_data.shape[1] for J in xrange(reduce_y)]
                 i_in = [(i*reduce_x+I)%input_data.shape[2] for I in xrange(reduce_x)]
+=======
+        for j in xrange(output_data.shape[0]):
+            for i in xrange(output_data.shape[1]):
+                j_in = [(j*reduce_y+J)%input_data.shape[0] for J in xrange(reduce_y)]
+                i_in = [(i*reduce_x+I)%input_data.shape[1] for I in xrange(reduce_x)]
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
                 j_in, i_in = np.meshgrid(j_in, i_in)
                 output_data[:,j,i] = operation(input_data[:,j_in,i_in], axis = (1, 2))
     elif len(in_shape) == 4:
         # This is a 4d array, assume f[t, z, y, x]
         output_data = np.zeros_like(input_data[:,:,::reduce_y, ::reduce_x])
+<<<<<<< HEAD
         for j in xrange(output_data.shape[2]):
             for i in xrange(output_data.shape[3]):
                 j_in = [(j*reduce_y+J)%input_data.shape[2] for J in xrange(reduce_y)]
                 i_in = [(i*reduce_x+I)%input_data.shape[3] for I in xrange(reduce_x)]
+=======
+        for j in xrange(output_data.shape[0]):
+            for i in xrange(output_data.shape[1]):
+                j_in = [(j*reduce_y+J)%input_data.shape[0] for J in xrange(reduce_y)]
+                i_in = [(i*reduce_x+I)%input_data.shape[1] for I in xrange(reduce_x)]
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
                 j_in, i_in = np.meshgrid(j_in, i_in)
                 output_data[:,:,j,i] = operation(input_data[:,:,j_in,i_in], axis = (2, 3))
     return output_data
 
+<<<<<<< HEAD
 def fix_x(array, axis = 1):
     """
     Expects a 2D array
@@ -66,6 +89,8 @@ def fix_x(array, axis = 1):
     return fixed_array
 
 """
+=======
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 # Do a test
 lwp_path   = '/nerc/n02/n02/xb899100/BOMEX/DX050_128/water.nc'
 import numpy as np
@@ -100,4 +125,8 @@ ax4.contourf(coarse_grain(lwp_data, reduce_y = 16, reduce_x = 16), cmap = 'Greys
 ax4.set_title('800m')
 
 plt.show()
+<<<<<<< HEAD
 """
+=======
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696

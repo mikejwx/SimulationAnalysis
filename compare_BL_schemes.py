@@ -80,7 +80,11 @@ for exp in exps:
         mr_nc.close()
         lwp_nc.close()
         bouy_nc.close()
+<<<<<<< HEAD
 """
+=======
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 ### Box/whisker plots of the boundary layer stuff from zi_DD.nc files ###
 fig = plt.figure()
 axa = fig.add_subplot(2, 2, 1)
@@ -309,6 +313,7 @@ plt.suptitle('Comparison of Cloud Fraction')
 plt.subplots_adjust(top = 0.88, right = 0.8)
 plt.savefig('../BLSchemeComparison_CloudFracHovmoller.png', dpi = 150)
 plt.show()
+<<<<<<< HEAD
 """
 
 ### Plot box and whisker plots of cloud cover and liquid water path over the last four days ###
@@ -354,4 +359,7 @@ fig.suptitle('Values over the last 4 days of the Spinup simulations, dx = 200 m'
 plt.subplots_adjust(top = 0.88, hspace = 0.3, wspace = 0.3)
 plt.savefig('../BLSchemeComparison_cloud_stuff.png', dpi = 150)
 plt.show()
+=======
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 

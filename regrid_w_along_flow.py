@@ -5,7 +5,11 @@ which follow the horizontal mean wind direction.
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate, integrate
+<<<<<<< HEAD
 from analysis_tools import fromComponents, get_cs_coords, bilinear_interpolation, in_plane_winds, getML_mean, send_email
+=======
+from analysis_tools import fromComponents, get_cs_coords, bilinear_interpolation, in_plane_winds, getML_mean
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 from netCDF4 import Dataset
 from datetime import datetime as dt
 from multiprocessing import Pool
@@ -31,7 +35,11 @@ from STASH_keys import u_key, v_key, zi_new_key, w_key
 
 # Get a list of all of the wind nc files
 print '[' + dt.now().strftime("%H:%M:%S") + '] Determining the swath orientation'
+<<<<<<< HEAD
 my_path = '/nerc/n02/n02/xb899100/CloudTrail/Control_1600m/'
+=======
+my_path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 my_files = os.listdir(my_path)
 wind_files = [my_file for my_file in my_files if 'wind' in my_file]
 zi_files = [my_file for my_file in my_files if 'zi' in my_file]
@@ -85,11 +93,18 @@ x_c = 100000.0 + R_i           # x-coordinate for the island centre
 y_c = 4*R_i                    # y-coordinate for the island centre
 
 # Create the coordinate system for this data
+<<<<<<< HEAD
 dx = 1600.0
 X, Y = np.meshgrid(np.arange(74)*dx, np.arange(20)*dx)
 
 # Get coordinates of the cross section along the swath
 h = dx*1. # Resolution in the along-swath direction
+=======
+X, Y = np.meshgrid(np.arange(0., 116000., 100.), np.arange(0., 31900., 100.))
+
+# Get coordinates of the cross section along the swath
+h = 100. # Resolution in the along-swath direction
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 x_cs, y_cs = get_cs_coords(x_c, y_c, orientation_in, X, Y, h = h)
 
 # Truncate to one domain - i.e. remove points that exit a boundary
@@ -108,7 +123,11 @@ R = -np.array([np.round(x, 0) for x in np.sign(x_cs - x_c)*np.sqrt((x_cs - x_c)*
 
 # Define how wide and long we want the swath to be
 swath_width  = 10000.
+<<<<<<< HEAD
 res = dx*1. # Resolution in the across-swath direction
+=======
+res = 100. # Resolution in the across-swath direction
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 
 # Use multiprocessing to quickly compute all the coordinates within the swath
 p = Pool()
@@ -131,7 +150,11 @@ orientation_in direction.
 ----------------------------------------------------------------------------
 INPUT:
 """
+<<<<<<< HEAD
 path = my_path
+=======
+path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 nc_in = 'wind'
 var_in = w_key
 nc_out = 'w_swath'
@@ -213,7 +236,11 @@ def createSwathNC(hour):
     print '[' + dt.now().strftime("%H:%M:%S") + '] Complete.'
 
 # Create the land-sea mask interpolated field
+<<<<<<< HEAD
 lsm_nc   = Dataset('/work/n02/n02/xb899100/island_masks/lsm50_1600m.nc', 'r')
+=======
+lsm_nc   = Dataset('/work/n02/n02/xb899100/island_masks/lsm50.nc', 'r')
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 lsm_var_interp = bilinear_interpolation(X, Y, lsm_nc.variables['lsm'][0,:,:,:], swath_x.flatten(), swath_y.flatten(), kind = 2).reshape((int(swath_width/res + 1), len(R)))
 lsm_nc.close()
 
@@ -222,5 +249,12 @@ p.map(createSwathNC, hours)
 p.close()
 p.join()
 
+<<<<<<< HEAD
 send_email(message = 'Completed w swath for ' + my_path.split('/')[-2] + ' experiment.', subject = 'regrid_w_along_flow.py', attachments = [''], isAttach = False)
+=======
+#in_plane_winds(u, v, orientation = 90.)
+
+
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 

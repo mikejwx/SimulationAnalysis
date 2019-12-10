@@ -10,7 +10,11 @@ for the same results.
 In addition, changes have been made to improve code readability.
 """
 
+<<<<<<< HEAD
 def main(data_path, ID, UG, l_diagnostics):
+=======
+def main(data_path, ID, UG):
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     import numpy as np
     import matplotlib.pyplot as plt
     from netCDF4 import Dataset
@@ -130,6 +134,7 @@ def main(data_path, ID, UG, l_diagnostics):
             
             # Find the minimum number of required levels to reproduce the mv profile
             mv_levels, mv_init = RDP(z, np.mean(rh_rg[-4*dt_i:, :], axis = 0), 0.01)
+<<<<<<< HEAD
             
             # Find the lowest height at whidh RH < 0.2
             idx_20 = np.where(mv_init <= 0.2)[0]
@@ -140,6 +145,8 @@ def main(data_path, ID, UG, l_diagnostics):
             # Then remove all points in between lowest 0.2 and highest 0.2
             mv_levels = np.array([mv_levels[i] for i in range(len(mv_levels)) if i not in idx_20[1:-1]])
             mv_init = np.array([mv_init[i] for i in range(len(mv_init)) if i not in idx_20[1:-1]])
+=======
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
             n_mvlev = len(mv_levels)
             
             # First namelist entry

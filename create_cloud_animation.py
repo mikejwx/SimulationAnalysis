@@ -70,11 +70,17 @@ def create_plot(it0):
     ax1.set_xlabel('x (km)')
     fig.colorbar(pcm, ax=ax1, label = 'LWP (g/m$^{2}$)')
     
+<<<<<<< HEAD
     plt.show()
     
     #plt.savefig('./scratch_cloud/' + "{0:04}".format(int(time_10[it0])) + 'comparison.png', dpi = 150)
     #plt.close('all')
 """
+=======
+    plt.savefig('./scratch_cloud/' + "{0:04}".format(int(time_10[it0])) + 'comparison.png', dpi = 150)
+    plt.close('all')
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 p = Pool()
 p.map(create_plot, xrange(len(time_10[1:])))
 p.close()
@@ -83,4 +89,8 @@ p.join()
 command1 = 'convert -delay 10 -loop 0 ./scratch_cloud/*.png ../cloud_animation_U10vU05.gif'
 command2 = 'rm -rf ./scratch_cloud/'
 [os.system(command) for command in [command1, command2]]
+<<<<<<< HEAD
 """
+=======
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696

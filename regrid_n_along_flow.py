@@ -5,7 +5,11 @@ which follow the horizontal mean wind direction.
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate, integrate
+<<<<<<< HEAD
 from analysis_tools import fromComponents, get_cs_coords, bilinear_interpolation, in_plane_winds, getML_mean, send_email
+=======
+from analysis_tools import fromComponents, get_cs_coords, bilinear_interpolation, in_plane_winds, getML_mean
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 from netCDF4 import Dataset
 from datetime import datetime as dt
 from multiprocessing import Pool
@@ -31,7 +35,11 @@ from STASH_keys import u_key, v_key, zi_new_key
 
 # Get a list of all of the wind nc files
 print '[' + dt.now().strftime("%H:%M:%S") + '] Determining the swath orientation'
+<<<<<<< HEAD
 my_path = '/nerc/n02/n02/xb899100/CloudTrail/U05_H125/'
+=======
+my_path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 my_files = os.listdir(my_path)
 wind_files = [my_file for my_file in my_files if 'wind' in my_file]
 zi_files = [my_file for my_file in my_files if 'zi' in my_file]
@@ -130,7 +138,11 @@ orientation_in direction.
 ----------------------------------------------------------------------------
 INPUT:
 """
+<<<<<<< HEAD
 path = my_path
+=======
+path = '/nerc/n02/n02/xb899100/CloudTrail/Control/'
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 nc_in = 'wind'
 nc_out = 'n_swath'
 var_out = 'n-prime'
@@ -222,5 +234,12 @@ p.map(createSwathNC, hours)
 p.close()
 p.join()
 
+<<<<<<< HEAD
 send_email(message = 'Completed n swath for ' + my_path.split('/')[-2] + ' experiment.', subject = 'regrid_n_along_flow.py', attachments = [''], isAttach = False)
+=======
+#
+
+
+
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 

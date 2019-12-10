@@ -109,7 +109,11 @@ for key in paths.keys():
     speed, wind_dir = fromComponents(u = np.nanmean(u_nc.variables[u_key][t_idx,:iz_LCL,:,:]), v = np.nanmean(v_nc.variables[v_key][t_idx,:iz_LCL,:,:]))
     
     # Get the distance away from the island-edge of the surface warm plume.
+<<<<<<< HEAD
     R_wp = np.nanmax(np.where(np.nanmean(thermo_nc.variables[theta_key][start_idx:end_idx,0,:,:], axis = 0) - np.nanmean(thermo_nc.variables[theta_key][start_idx:end_idx,0,:,:]) > 0.1, np.sqrt((X-x_c)**2 + (Y-y_c)**2) - R_i, np.nan))
+=======
+    R_wp = 0#np.nanmax(np.where(np.nanmean(thermo_nc.variables[theta_key][start_idx:end_idx,0,:,:], axis = 0) - np.nanmean(thermo_nc.variables[theta_key][start_idx:end_idx,0,:,:]) > 0.1, np.sqrt((X-x_c)**2 + (Y-y_c)**2) - R_i, np.nan))
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     # Compute the rectangle and the new cartesian coordinate system
     mask, mass_flux_xs[key]['y_prime'], mass_flux_xs[key]['x_prime'] = downwind_rectangle(wind_dir = wind_dir, x_c = x_c, y_c = y_c, X = X, Y = Y, island_radius = R_i, dist_0 = 0+R_wp, dist_1 = (end_t - start_t)*60.0*speed+R_wp, half_width = 5000.0)
     
@@ -139,12 +143,19 @@ for key in circulation_MF.keys():
 # do plot
 offset = 4
 fig = plt.figure()
+<<<<<<< HEAD
 axa = fig.add_subplot(1, 1, 1, adjustable = 'box')
+=======
+axa = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 [axa.plot(int(key[1:4]), circulation_MF[key], color = my_colors[key], 
      marker = ['o' if int(key[5:8]) == 250 else '^' if int(key[5:8]) == 375 else 'v'][0], ls = 'None',
      markersize = 10, label = [u'E = 250 W m$^{-2}$' if (int(key[5:8]) == int(key[1:4])) else u'E = 375 W m$^{-2}$' if int(key[5:8]) == 375 else u'E = 125 W m$^{-2}$' if int(key[5:8]) == 125 else None][0]) for key in paths.keys()]
 axa.set_ylabel(u'Circulation Mass Flux (kg m$^{-1}$ s$^{1}$)')
+<<<<<<< HEAD
 #axa.set_ylabel(u'Circulation Updraught (m s$^{-1}$)')
+=======
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 axa.set_xlabel(u'Max Island Surface Sensible Heat Flux (W m$^{-2}$)')
 # Plot a line of best fit
 my_x = np.array([int(key[1:4]) for key in paths.keys()])
@@ -152,26 +163,45 @@ my_y = np.array([circulation_MF[key] for key in paths.keys()])
 my_fit = np.polyfit(my_x, my_y, 1)
 axa.plot([0,500], [np.sum([my_fit[i]*(x**(len(my_fit) - i - 1)) for i in range(len(my_fit))]) for x in [0,500]], 'k--')
 axa.text(250-offset, circulation_MF['H250E250']+offset, u'y = ' + str(round(my_fit[0], 4)) + 'x ' +['+ ' if my_fit[1] >= 0 else ''][0] + str(round(my_fit[1], 4)), rotation = 180*np.arctan(my_fit[0])/np.pi, color = 'k', ha = 'left', va = 'bottom')
+<<<<<<< HEAD
 #my_max = (max(100*my_y) + 2)/100.
 # Plot a one to one line
 my_max = 50*(max(my_y)/50 + 1)
 #axa.plot([0,500], [0,500], 'r--')
 #axa.text(100-offset, 100+offset, 'one-to-one', rotation = 45, color = 'red', ha = 'left', va = 'bottom')
+=======
+# Plot a one to one line
+my_max = 50*(max(my_y)/50 + 1)
+axa.plot([0,500], [0,500], 'r--')
+axa.text(100-offset, 100+offset, 'one-to-one', rotation = 45, color = 'red', ha = 'left', va = 'bottom')
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 # Domain shape parameters
 axa.set_xlim([0, 500])
 axa.set_ylim([0, my_max])
 axa.text(250+offset, circulation_MF['H250E250']-offset, 'Control', va = 'top')
 axa.legend(loc = 0, numpoints = 1)
+<<<<<<< HEAD
 plt.savefig('../circulationM_Heat_cloudbandonly.png', dpi = 150, bbox_inches = 'tight')
+=======
+plt.savefig('../circulationM_Heat.png', dpi = 150, bbox_inches = 'tight')
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 plt.show()
 
 # Against peak total energy flux
 fig = plt.figure()
+<<<<<<< HEAD
 axa = fig.add_subplot(1, 1, 1, adjustable = 'box')
 [axa.plot(int(key[1:4]) + int(key[5:8]), circulation_MF[key], color = my_colors[key], 
      marker = ['o' if int(key[5:8]) == 250 else 'v' if int(key[5:8]) == 375 else '^'][0], ls = 'None',
      markersize = 10, label = [u'$\\beta = 1$' if (int(key[5:8]) == int(key[1:4])) else u'$\\beta = 1/3$' if int(key[5:8]) == 375 else u'$\\beta = 3$' if int(key[5:8]) == 125 else None][0]) for key in paths.keys()]
 axa.set_ylabel(u'Circulation Mass Flux (kg m$^{-1}$ s$^{-1}$)')
+=======
+axa = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
+[axa.plot(int(key[1:4]) + int(key[5:8]), circulation_MF[key], color = my_colors[key], 
+     marker = ['o' if int(key[5:8]) == 250 else 'v' if int(key[5:8]) == 375 else '^'][0], ls = 'None',
+     markersize = 10, label = [u'$\\beta = 1$' if (int(key[5:8]) == int(key[1:4])) else u'$\\beta = 1/3$' if int(key[5:8]) == 375 else u'$\\beta = 3$' if int(key[5:8]) == 125 else None][0]) for key in paths.keys()]
+axa.set_ylabel(u'Circulation Mass Flux (kg m$^{-1}$ s$^{1}$)')
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 axa.set_xlabel(u'Total Energy Flux (W m$^{-2}$)')
 # Plot a line of best fit
 my_x = np.array([int(key[1:4]) + int(key[5:8]) for key in paths.keys()])
@@ -182,9 +212,15 @@ axa.text(500-offset, circulation_MF['H250E250']+offset, u'y = ' + str(round(my_f
 # Domain shape parameters
 axa.set_xlim([250, 700])
 axa.set_ylim([0, my_max])
+<<<<<<< HEAD
 axa.text(500+offset, circulation_MF['H250E250']-offset, 'Control', va = 'top', ha = 'right')
 axa.legend(loc = 0, numpoints = 1)
 plt.savefig('../circulationM_Heat_Rnet_cloudbandonly.png', dpi = 150, bbox_inches = 'tight')
+=======
+axa.text(500+offset, circulation_MF['H250E250']-offset, 'Control', va = 'top')
+axa.legend(loc = 0, numpoints = 1)
+plt.savefig('../circulationM_Heat_Rnet.png', dpi = 150, bbox_inches = 'tight')
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 plt.show()
 
 if l_testing:

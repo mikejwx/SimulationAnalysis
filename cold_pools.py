@@ -116,6 +116,7 @@ if l_testing:
             B_REF[:,:,j,i] = (theta_REF[:,:,j,i] - theta_bar_REF)/theta_bar_REF + 0.61*(mv_REF[:,:,j,i] - mv_bar_REF) - mcl_REF[:,:,j,i] - mr_REF[:,:,j,i]
             B_U05[:,:,j,i] = (theta_U05[:,:,j,i] - theta_bar_U05)/theta_bar_U05 + 0.61*(mv_U05[:,:,j,i] - mv_bar_U05) - mcl_U05[:,:,j,i] - mr_U05[:,:,j,i]
     
+<<<<<<< HEAD
     # Plot some vertical profiles through some particularly cold surface spots
     it, iy, ix = np.where(B_REF[:,0,:,:] == np.min(B_REF[:,0,:,:]))
     it, iy, ix = [it[0], iy[0], ix[0]]
@@ -155,6 +156,46 @@ if l_testing:
     ax3.plot(B_U05[it,:,iy,ix], z)
     ax3.set_title('B$_{U05}$, C$_{U05}$ = ' + str(round(C_U05, 1)) + ' m/s')
     plt.show()
+=======
+# Plot some vertical profiles through some particularly cold surface spots
+it, iy, ix = np.where(B_REF[:,0,:,:] == np.min(B_REF[:,0,:,:]))
+it, iy, ix = [it[0], iy[0], ix[0]]
+fig = plt.figure()
+ax0 = fig.add_subplot(2, 2, 1)
+ax0.plot(theta_p_REF[it,:,iy,ix], z)
+ax0.set_title('$\\theta^{\prime}_{REF}$')
+
+# Get the density current propagation speed
+iz = 0
+while B_REF[it,iz,iy,ix] < 0:
+    iz += 1
+
+C2 = - 2*integrate.trapz(B_REF[it,:iz,iy,ix], z[:iz])
+C_REF = np.sqrt(C2)
+
+ax1 = fig.add_subplot(2, 2, 2)
+ax1.plot(B_REF[it,:,iy,ix], z)
+ax1.set_title('B$_{REF}$, C$_{REF}$ = ' + str(round(C_REF, 1)) + ' m/s')
+
+it, iy, ix = np.where(B_U05[:,0,:,:] == np.min(B_U05[:,0,:,:]))
+it, iy, ix = [it[0], iy[0], ix[0]]
+ax2 = fig.add_subplot(2, 2, 3)
+ax2.plot(theta_p_U05[it,:,iy,ix], z)
+ax2.set_title('$\\theta^{\prime}_{U05}$')
+
+# Get the density current propagation speed
+iz = 0
+while B_U05[it,iz,iy,ix] < 0:
+    iz += 1
+
+C2 = - 2*integrate.trapz(B_U05[it,:iz,iy,ix], z[:iz])
+C_U05 = np.sqrt(C2)
+
+ax3 = fig.add_subplot(2, 2, 4)
+ax3.plot(B_U05[it,:,iy,ix], z)
+ax3.set_title('B$_{U05}$, C$_{U05}$ = ' + str(round(C_U05, 1)) + ' m/s')
+plt.show()
+>>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     
 else:
     hours = ["{0:02d}".format(h) for h in xrange(0, 16, 4)]
