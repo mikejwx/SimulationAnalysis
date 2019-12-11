@@ -21,11 +21,13 @@ def downwind_rectangle(wind_dir, x_c, y_c, X, Y, island_radius, dist_0, dist_1, 
     the across-line direction, zero if exactly on the line, and increasing to 
     the right of the line with respect to the downwind direction.
     ----------------------------------------------------------------------------
-    wind_dir   -> wind direction in degrees
-    x_c, y_c   -> the x and y coordinates of the point of interest
-    X, Y       -> the X and Y coordinates of the grid of interest, 2D arrays
-    distance   -> the distance downwind that we're interested in
-    half_width -> the half width of the rectangle i.e. the max distance in y'
+    wind_dir      -> wind direction in degrees
+    x_c, y_c      -> the x and y coordinates of the point of interest
+    X, Y          -> the X and Y coordinates of the grid of interest, 2D arrays
+    island_radius -> the radius of the island, start computing dist_0 downwind from here.
+    dist_0        -> the starting distance downwind of the leeward side of the island
+    dist_1        -> the ending distance downwind of the leeward side of the island
+    half_width    -> the half width of the rectangle i.e. the max distance in y'
     """
     ############################################################################
     # Find the equation for the line between the point of interest and the 
@@ -33,34 +35,61 @@ def downwind_rectangle(wind_dir, x_c, y_c, X, Y, island_radius, dist_0, dist_1, 
     ############################################################################
     # Assume that the wind is from the northeastern quadrant
     # Find the distance to the domain edge
-    h = x_c/np.sin(wind_dir*np.pi/180.0)
+    h_par = x_c/np.sin(wind_dir*np.pi/180.0)
     
+    # Assume that the line parallel to the wind is of the form y = m_par x + c_par
     # Use that distance, h, to find the slop of the line:
-    m = np.sqrt(h**2.0 - x_c**2.0)/x_c
+    m_par = np.sqrt(h_par**2.0 - x_c**2.0)/x_c
     
     # Use that distance, h, again to find the y-intercept
-    c = y_c - np.sqrt(h**2.0 + x_c**2.0)
+    c_par = y_c - np.sqrt(h_par**2.0 - x_c**2.0)
     
-    # Assume the line is of form y = mx + c
-    x = np.arange(0.0, distance + 0.1, X[0,1] - X[0,0])
-    y = m*x + c
+    # Assume the line perpendicular to the wind is of form y = m_per x + c_per
+    h_per = x_c/np.cos(wind_dir*np.pi/180.0)
+    m_per = -np.sqrt(h_per**2.0 - x_c**2.0)/x_c
+    c_per = np.sqrt(h_per**2.0 - x_c**2.0) + y_c
     
     ############################################################################
     # Compute the distance from that line at every point
     ############################################################################
-    d2l = ((X*c)/s - (c*Y)/m + (c**2.0)/m)/(c*((1.0/(m**2)) + 1.0)**0.5)
+    # In the y-prime direction
+    d2l_yp = np.abs((X*m_par - Y + c_par))/(m_par**2.0 + (-1.0)**2.0)**0.5
     
     # Create a mask of points within half_width of the line
-    mask = np.where(d2l <= half_width, 1.0, 0.0)
+    mask = np.where(d2l_yp <= half_width, 1.0, 0.0)
+    
+    # In the x-prime direction
+    d2l_xp = np.abs((X*m_per - Y + c_per))/(m_per**2.0 + (-1.0)**2.0)**0.5
+    
+    # Adjust mask
+    mask = np.where((dist_0 <= d2l_xp)*(d2l_xp <= dist_1), mask, 0.0)
     
     # Create a new coordinate system; cartesian -> polar, polar -> cartesian
     R     = np.sqrt((X - x_c)**2.0 + (Y - y_c)**2.0)
     theta = np.arccos((X - x_c)/R)*180.0/np.pi
-    y_prime = d2l*np.where(theta > wind_dir + 180.0, 1.0, -1.0)
+    y_prime = d2l_yp*np.where(theta > wind_dir + 180.0, 1.0, -1.0)
     x_prime = np.sqrt(R**2.0 + y_prime**2.0)
     
     return mask, y_prime, x_prime
 
+# Testing the downwind rectangle
+wind_dir = 77.5
+x_c = 100000.0
+y_c = 16000.0
+X, Y = np.meshgrid(np.arange(1184)*100.0, np.arange(320)*100.0)
+island_radius = np.sqrt(50.0/np.pi)*1000.
+dist_0 = 0.0
+dist_1 = 10000.0
+half_width = 3000.0
+mask, y_prime, x_prime = downwind_rectangle(wind_dir, x_c, y_c, X, Y, island_radius, dist_0, dist_1, half_width)
+
+fig = plt.figure()
+axa = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
+im = axa.contourf(X, Y, mask, cmap = 'bwr')
+plt.colorbar(im, ax = axa)
+plt.show()
+
+crash
 def zi(theta_v, z):
     """
     Function to calculate the mixed layer depth as a function of the virtual
