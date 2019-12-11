@@ -148,7 +148,6 @@ for key in paths.keys():
     Q[key] = H[key] + integrate.trapz(x = rho_times[t_idx], y = float(key[5:])*np.cos((np.pi/2)*(t0 - rho_times[t_idx])/(dt/2))**1.3)/(rho_times[t_idx].max() - rho_times[t_idx].min())
     B[key] = (H[key]/(1.17*1005.))*(1. + 0.61*0.017) + 0.61*302.3*((Q[key] - H[key])/(1.17*2.501e6))
 
-crash
 ### Make the plot ###
 fig = plt.figure(figsize = (12, 10))
 # Against peak total energy flux

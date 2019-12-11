@@ -36,7 +36,6 @@ axa.set_xlabel('$(\overline{u^{\prime} w^{\prime}})$ (m$^{2}$ s$^{-2}$)')
 axa.set_ylabel('Height (km)')
 axa.set_ylim([0, 1])
 axa.legend(loc = 0, frameon = 0)
-plt.savefig('../momentum_fluxes_by experiment.png', dpi = 150, bbox_inches = 'tight')
 plt.show()
 
 
