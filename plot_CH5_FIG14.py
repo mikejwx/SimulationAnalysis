@@ -60,7 +60,7 @@ lcl = {}
 for key in paths.keys():
     print '[' + dt.now().strftime('%H:%M:%S') + '] Starting experiment ' + key + '...'
     hour = '09'    # Which time chunk of output are we analysing?
-    start_t = 660. # What time are we starting the analysis?
+    start_t = 540. # What time are we starting the analysis?
     end_t = 720.   # What time are we finishing the analysis?
     
     print '[' + dt.now().strftime('%H:%M:%S') + '] Opening the netCDF...'
@@ -148,7 +148,7 @@ for key in paths.keys():
     Q[key] = H[key] + integrate.trapz(x = rho_times[t_idx], y = float(key[5:])*np.cos((np.pi/2)*(t0 - rho_times[t_idx])/(dt/2))**1.3)/(rho_times[t_idx].max() - rho_times[t_idx].min())
     B[key] = (H[key]/(1.17*1005.))*(1. + 0.61*0.017) + 0.61*302.3*((Q[key] - H[key])/(1.17*2.501e6))
 
-crash
+
 ### Make the plot ###
 fig = plt.figure(figsize = (12, 10))
 # Against peak total energy flux
@@ -157,17 +157,17 @@ axa = fig.add_subplot(2, 3, 1, adjustable = 'box')
      marker = ['o' if int(key[5:8]) == 250 else 'v' if int(key[5:8]) == 375 else '^'][0], ls = 'None',
      markersize = 10, markeredgecolor = 'none') for key in paths.keys()]
 axa.set_ylabel(u'Circulation Mass Flux (kg m$^{-1}$ s$^{-1}$)')
-axa.set_xlabel(u'Total Energy Flux, $Q_{net} = H_{0} + E_{0}$ (W m$^{-2}$)')
+axa.set_xlabel(u'$Q_{net} = H_{0} + E_{0}$ (W m$^{-2}$)')
 # Plot a line of best fit
 my_x = np.array([int(key[1:4]) + int(key[5:8]) for key in paths.keys()])
 my_y = np.array([circulation_MF[key] for key in paths.keys()])
 my_fit = np.polyfit(my_x, my_y, 1)
 axa.plot([0,750], [np.sum([my_fit[i]*(x**(len(my_fit) - i - 1)) for i in range(len(my_fit))]) for x in [0,750]], 'k--')
-axa.set_title(u'a) y = ' + str(round(my_fit[0]*1e04, 2)) + '$\\times 10^{-4}$ x ' +['+ ' if my_fit[1] >= 0 else ''][0] + str(round(my_fit[1]*1e02, 4)) + u'$\\times 10^{-2}$', fontsize = 12)
+axa.set_title(u'a) y = ' + str(round(my_fit[0], 2)) + ' x ' +['+ ' if my_fit[1] >= 0 else ''][0] + str(round(my_fit[1], 4)), fontsize = 12)
 # Domain shape parameters
 axa.set_xlim([250, 750])
-axa.set_ylim([0, 0.30])
-axa.set_yticks(np.arange(0, 0.31, 0.05))
+axa.set_ylim([0, 350])
+axa.set_yticks(np.arange(0, 351, 50))
 # point to the control point
 axa.annotate('Control', (500, circulation_MF['H250E250']), (600, 0.75*circulation_MF['H250E250']), arrowprops = dict(color = 'k', width = 1))
 
@@ -182,11 +182,11 @@ my_x = np.array([int(key[1:4]) for key in paths.keys()])
 my_y = np.array([circulation_MF[key] for key in paths.keys()])
 my_fit = np.polyfit(my_x, my_y, 1)
 axb.plot([0,500], [np.sum([my_fit[i]*(x**(len(my_fit) - i - 1)) for i in range(len(my_fit))]) for x in [0,500]], 'k--')
-axb.set_title(u'b) y = ' + str(round(my_fit[0]*1e04, 2)) + '$\mathrm{\\times 10^{-4}}$ x ' +['+ ' if my_fit[1] >= 0 else ''][0] + str(round(my_fit[1]*1e02, 4)) + u'$\mathrm{\\times10^{-2}}$', fontsize = 12)
+axb.set_title(u'b) y = ' + str(round(my_fit[0], 2)) + ' x ' +['+ ' if my_fit[1] >= 0 else ''][0] + str(round(my_fit[1], 4)), fontsize = 12)
 # Domain shape parameters
 axb.set_xlim([0, 500])
-axb.set_ylim([0, 0.30])
-axb.set_yticks(np.arange(0, 0.31, 0.05))
+axb.set_ylim([0, 350])
+axb.set_yticks(np.arange(0, 351, 50))
 axb.set_yticklabels([''])
 axb.annotate('Control', (250, circulation_MF['H250E250']), (275, 0.75*circulation_MF['H250E250']), arrowprops = dict(color = 'k', width = 1))
 # point to the bowen ratio experiments
@@ -204,11 +204,11 @@ my_x = np.array([(float(key[1:4])/(1.17*1005.))*(1. + 0.61*0.017) + 0.61*302.3*(
 my_y = np.array([circulation_MF[key] for key in paths.keys()])
 my_fit = np.polyfit(my_x, my_y, 1)
 axc.plot([0,0.4], [np.sum([my_fit[i]*(x**(len(my_fit) - i - 1)) for i in range(len(my_fit))]) for x in [0,0.4]], 'k--')
-axc.set_title(u'c) y = ' + str(round(my_fit[0], 3)) + ' x ' +['+ ' if my_fit[1] >= 0 else ''][0] + str(round(my_fit[1]*1e02, 4)) + u'$\mathrm{\\times10^{-2}}$', fontsize = 12)
+axc.set_title(u'c) y = ' + str(round(my_fit[0], 3)) + ' x ' +['+ ' if my_fit[1] >= 0 else ''][0] + str(round(my_fit[1], 4)), fontsize = 12)
 # Domain shape parameters
 axc.set_xlim([0, 0.4])
-axc.set_ylim([0, 0.30])
-axc.set_yticks(np.arange(0, 0.31, 0.05))
+axc.set_ylim([0, 350])
+axc.set_yticks(np.arange(0, 351, 50))
 axc.set_xticks(np.arange(0, 0.41, 0.1))
 axc.set_yticklabels([''])
 axc.annotate('Control', (0.23, circulation_MF['H250E250']), (0.25, 0.75*circulation_MF['H250E250']), arrowprops = dict(color = 'k', width = 1))
@@ -221,17 +221,19 @@ y_c = 4*R_i
 R = np.sqrt((X - x_c)**2 + (Y - y_c)**2)
 ax = fig.add_subplot(2, 1, 2, adjustable = 'box', aspect = 1)
 my_plt = ax.contourf(X/1000, Y/1000, mass_flux_xs[key]['mass_flux'], cmap = 'bwr', levels = [level for level in np.arange(-1.0, 1.1, 0.125) if round(level,1) != 0], extend = 'both')
+ax.contour(X/1000., Y/1000., mass_flux_xs[key]['mask'], levels = [0.5], colors = ['k'], linestyles = ['--'])
 my_plt.cmap.set_over('firebrick')
 my_plt.cmap.set_under('navy')
 cb = plt.colorbar(my_plt, ax = ax, orientation = 'horizontal', label = 'Mass Flux (kg m$^{-2}$ s$^{-1}$)')
-my_cb_ticks = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]
+my_cb_ticks = [-1, -2./3., -1./3., 0, 1./3., 2./3., 1]
+my_cb_ticks = [round(tick, 2) for tick in my_cb_ticks]
 cb.set_ticks(my_cb_ticks)
 cb.set_ticklabels([str(tick) for tick in my_cb_ticks])
 ax.contour(X/1000, Y/1000, R, levels = [R_i], colors = ['k'])
 ax.contour(X/1000, Y/1000, np.where(np.isnan(mass_flux_xs[key]['mass_flux_masked']), 0.0, 1.0), levels = [0.5], colors = ['purple'])
-ax.set_title('d) Control Mass Flux in CT region', fontsize = 12) 
+ax.set_title('d) Control Mass Flux at z = LCL', fontsize = 12) 
 ax.set_xlabel('x (km)')
 ax.set_ylabel('y (km)')
-#plt.savefig('../Ch5_Figure14.png', dpi = 250, bbox_inches = 'tight')
+plt.savefig('../Ch5_Figure14.png', dpi = 250, bbox_inches = 'tight')
 plt.show()
 

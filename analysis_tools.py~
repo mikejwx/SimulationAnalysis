@@ -45,8 +45,8 @@ def downwind_rectangle(wind_dir, x_c, y_c, X, Y, island_radius, dist_0, dist_1, 
     c_par = y_c - np.sqrt(h_par**2.0 - x_c**2.0)
     
     # Assume the line perpendicular to the wind is of form y = m_per x + c_per
-    h_per = x_c/np.cos((wind_dir)*np.pi/180.0)
-    m_per = np.sqrt(h_per**2.0 - x_c**2.0)/x_c
+    h_per = x_c/np.cos(wind_dir*np.pi/180.0)
+    m_per = -np.sqrt(h_per**2.0 - x_c**2.0)/x_c
     c_per = np.sqrt(h_per**2.0 - x_c**2.0) + y_c
     
     ############################################################################
@@ -59,37 +59,19 @@ def downwind_rectangle(wind_dir, x_c, y_c, X, Y, island_radius, dist_0, dist_1, 
     mask = np.where(d2l_yp <= half_width, 1.0, 0.0)
     
     # In the x-prime direction
-    d2l_xp = np.abs((X*m_per - Y + c_per))/(m_per**2.0 + (-1.0)**2.0)**0.5
+    d2l_xp = (X*m_per - Y + c_per)/(m_per**2.0 + (-1.0)**2.0)**0.5
     
     # Adjust mask
-    mask = np.where((dist_0 <= d2l_xp)*(d2l_xp <= dist_1), mask, 0.0)
+    mask = np.where(((dist_0) <= d2l_xp)*(d2l_xp <= (dist_1)), mask, 0.0)
     
     # Create a new coordinate system; cartesian -> polar, polar -> cartesian
     R     = np.sqrt((X - x_c)**2.0 + (Y - y_c)**2.0)
     theta = np.arccos((X - x_c)/R)*180.0/np.pi
-    y_prime = d2l_yp*np.where(theta > wind_dir + 180.0, 1.0, -1.0)
-    x_prime = np.sqrt(R**2.0 + y_prime**2.0)
+    y_prime = d2l_yp*np.where(Y > m_par*X + c_par, -1.0, 1.0)
+    x_prime = d2l_xp - 2*island_radius
     
     return mask, y_prime, x_prime
 
-# Testing the downwind rectangle
-wind_dir = 77.5
-x_c = 100000.0
-y_c = 16000.0
-X, Y = np.meshgrid(np.arange(1184)*100.0, np.arange(320)*100.0)
-island_radius = np.sqrt(50.0/np.pi)*1000.
-dist_0 = 0.0
-dist_1 = 10000.0
-half_width = 3000.0
-mask, y_prime, x_prime = downwind_rectangle(wind_dir, x_c, y_c, X, Y, island_radius, dist_0, dist_1, half_width)
-
-fig = plt.figure()
-axa = fig.add_subplot(1, 1, 1, adjustable = 'box', aspect = 1)
-im = axa.contourf(X, Y, mask, cmap = 'bwr')
-plt.colorbar(im, ax = axa)
-plt.show()
-
-crash
 def zi(theta_v, z):
     """
     Function to calculate the mixed layer depth as a function of the virtual

@@ -67,7 +67,7 @@ def downwind_rectangle(wind_dir, x_c, y_c, X, Y, island_radius, dist_0, dist_1, 
     # Create a new coordinate system; cartesian -> polar, polar -> cartesian
     R     = np.sqrt((X - x_c)**2.0 + (Y - y_c)**2.0)
     theta = np.arccos((X - x_c)/R)*180.0/np.pi
-    y_prime = d2l_yp*np.where(theta > wind_dir + 180.0, 1.0, -1.0)
+    y_prime = d2l_yp*np.where(Y > m_par*X + c_par, -1.0, 1.0)
     x_prime = d2l_xp - 2*island_radius
     
     return mask, y_prime, x_prime
