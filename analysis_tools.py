@@ -30,6 +30,15 @@ def downwind_rectangle(wind_dir, x_c, y_c, X, Y, island_radius, dist_0, dist_1, 
     half_width    -> the half width of the rectangle i.e. the max distance in y'
     """
     ############################################################################
+    # Create the periodic domain coordinates, Xp and Yp
+    # assume that dx = dy
+    ############################################################################
+    dx = X[0,1] - X[0,0]
+    Xp, Yp = np.meshgrid(np.arange(X.shape[1]*3)*dx, np.arange(Y.shape[0]*3)*dx)
+    Xp -= (X.max() + dx)
+    Yp -= (Y.max() + dx)
+    
+    ############################################################################
     # Find the equation for the line between the point of interest and the 
     # domain edge
     ############################################################################
@@ -53,20 +62,37 @@ def downwind_rectangle(wind_dir, x_c, y_c, X, Y, island_radius, dist_0, dist_1, 
     # Compute the distance from that line at every point
     ############################################################################
     # In the y-prime direction
-    d2l_yp = np.abs((X*m_par - Y + c_par))/(m_par**2.0 + (-1.0)**2.0)**0.5
+    d2l_ypp = np.abs((Xp*m_par - Yp + c_par))/(m_par**2.0 + (-1.0)**2.0)**0.5
+    mask_temp = np.where(d2l_ypp <= half_width, 1.0, 0.0)
+    
+    # In the x-prime direction
+    d2l_xpp = (Xp*m_per - Yp + c_per)/(m_per**2.0 + (-1.0)**2.0)**0.5
+    mask_temp = np.where(((dist_0) <= d2l_xpp)*(d2l_xpp <= (dist_1)), mask_temp, 0.0)
+    
+    # mask out adjascent false domains if the masked region isn't in them
+    for j in range(3):
+        for i in range(3):
+            if not np.max(mask_temp[j*X.shape[0]:(j+1)*X.shape[0],i*X.shape[1]:(i+1)*X.shape[1]]):
+                d2l_ypp[j*X.shape[0]:(j+1)*X.shape[0],i*X.shape[1]:(i+1)*X.shape[1]] = np.nan
+                d2l_xpp[j*X.shape[0]:(j+1)*X.shape[0],i*X.shape[1]:(i+1)*X.shape[1]] = np.nan
+    
+    d2l_yp = np.zeros_like(X)
+    d2l_xp = np.zeros_like(Y)
+    for j in range(X.shape[0]):
+        for i in range(X.shape[1]):
+            J, I = np.meshgrid(np.array([j, j+X.shape[0], j+2*X.shape[0]]), np.array([i, i+X.shape[1], i+2*X.shape[1]]))
+            d2l_yp[j,i] = np.nanmin(d2l_ypp[J,I])
+            jj, ii = np.where(d2l_ypp[J,I] == d2l_yp[j,i])
+            jj, ii = jj[0], ii[0]
+            d2l_xp[j,i] = d2l_xpp[J[jj,ii], I[jj,ii]]
     
     # Create a mask of points within half_width of the line
     mask = np.where(d2l_yp <= half_width, 1.0, 0.0)
     
-    # In the x-prime direction
-    d2l_xp = (X*m_per - Y + c_per)/(m_per**2.0 + (-1.0)**2.0)**0.5
-    
     # Adjust mask
     mask = np.where(((dist_0) <= d2l_xp)*(d2l_xp <= (dist_1)), mask, 0.0)
     
-    # Create a new coordinate system; cartesian -> polar, polar -> cartesian
-    R     = np.sqrt((X - x_c)**2.0 + (Y - y_c)**2.0)
-    theta = np.arccos((X - x_c)/R)*180.0/np.pi
+    # Create a new coordinate system
     y_prime = d2l_yp*np.where(Y > m_par*X + c_par, -1.0, 1.0)
     x_prime = d2l_xp - 2*island_radius
     
