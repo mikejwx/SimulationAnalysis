@@ -31,7 +31,7 @@ my_lw     = {'RH_BLm25'      : '2',
              'Control_short' : '1'}
 my_labels = {'RH_BLm25'      : 'BLm25',
              'RH_FAm25'      : 'FAm25',
-             'Control_short' : 'REF'}
+             'Control_short' : 'Control (short)'}
 
 fig = plt.figure()
 axa = fig.add_subplot(1, 2, 1)
@@ -45,13 +45,13 @@ axb.set_yticklabels([''])
 axb.set_xlabel(u'q$_{v}$ (g kg$^{-1}$)')
 
 for key in my_RH_data.keys():
-    axa.plot(my_RH_data[key]['RH'], z/1000., color = my_colors[key], lw = my_lw[key], label = my_labels[key], ls = ['--' if 'm25' in key else '-'][0])
-    axb.plot(my_RH_data[key][q_key]*1000., z/1000., color = my_colors[key], lw = my_lw[key], ls = ['--' if 'm25' in key else '-'][0])
+    axa.plot(my_RH_data[key]['RH'], z/1000., color = my_colors[key], lw = my_lw[key], ls = ['--' if 'm25' in key else '-'][0])
+    axb.plot(my_RH_data[key][q_key]*1000., z/1000., color = my_colors[key], lw = my_lw[key], label = my_labels[key], ls = ['--' if 'm25' in key else '-'][0])
 
-axa.legend(loc = 0, frameon = 0)
-axa.text(7.5, 3.7, 'a)')
-axb.text(0.075*20., 3.7, 'b)', bbox={'fc':'w', 'ec':'None'})
-plt.savefig('../RH_exp_IC.png', dpi = 150, bbox_inches = 'tight')
+axb.legend(loc = 0, frameon = 0)
+axa.set_title('a) Initial Relative Humidity')
+axb.set_title('b) Initial Specific Humidity')
+plt.savefig('../RH_exp_IC.png', dpi = 250, bbox_inches = 'tight')
 plt.show()
 
 # plot the final conditions?
@@ -87,12 +87,12 @@ axb.set_yticklabels([''])
 axb.set_xlabel(u'q$_{v}$ (g kg$^{-1}$)')
 
 for key in my_RH_data.keys():
-    axa.plot(my_RH_data[key]['RH'], z/1000., color = my_colors[key], lw = my_lw[key], label = my_labels[key], ls = ['--' if 'm25' in key else '-'][0])
-    axb.plot(my_RH_data[key][q_key]*1000., z/1000., color = my_colors[key], lw = my_lw[key], ls = ['--' if 'm25' in key else '-'][0])
+    axa.plot(my_RH_data[key]['RH'], z/1000., color = my_colors[key], lw = my_lw[key], ls = ['--' if 'm25' in key else '-'][0])
+    axb.plot(my_RH_data[key][q_key]*1000., z/1000., color = my_colors[key], lw = my_lw[key], ls = ['--' if 'm25' in key else '-'][0], label = my_labels[key])
 
-axa.legend(loc = 0, frameon = 0)
-axa.text(7.5, 3.7, 'a)')
-axb.text(0.075*20., 3.7, 'b)', bbox={'fc':'w', 'ec':'None'})
-plt.savefig('../RH_exp_FC.png', dpi = 150, bbox_inches = 'tight')
+axb.legend(loc = 0, frameon = 0)
+axa.set_title('a) Dawn Relative Humidity')
+axb.set_title('b) Dawn Specific Humidity')
+plt.savefig('../RH_exp_FC.png', dpi = 250, bbox_inches = 'tight')
 plt.show()
 

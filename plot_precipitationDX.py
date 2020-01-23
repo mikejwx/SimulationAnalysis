@@ -27,7 +27,6 @@ for exp in experiments:
 
 # define plotting parameters
 my_levels = np.array([0.01, 0.5, 1., 2., 4., 8., 16., 32.])
-<<<<<<< HEAD
 n_levels = float(len(my_levels))
 my_cmap = mpl.cm.get_cmap('YlGnBu')
 my_colors = my_cmap((np.arange(n_levels)+1.0)/(n_levels))
@@ -36,13 +35,6 @@ my_colors = my_cmap((np.arange(n_levels)+1.0)/(n_levels))
 labels = ['a)', 'b)', 'c)', 'd)']
 ### Make the plot ###
 fig = plt.figure(figsize = (10, 5))
-=======
-my_colors = ['blue', 'cornflowerblue', 'olive', 'gold', 'orange', 'red', 'magenta', 'ghostwhite']
-# Panel labels
-labels = ['a)', 'b)', 'c)', 'd)']
-### Make the plot ###
-fig = plt.figure(figsize = (8.5, 4))
->>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 for exp in experiments:
     idx = experiments.index(exp)+1
     it0 = np.where(lwp_data[exp]['time'] == 360.)[0][0]
@@ -51,14 +43,9 @@ for exp in experiments:
     precip = lwp_data[exp]['rain'][it1,:,:] - lwp_data[exp]['rain'][it0,:,:]
     im = ax.contourf(lwp_data[exp]['x'], lwp_data[exp]['y'], precip, levels = my_levels, colors = my_colors, extend = 'max')
     ax.contour(lwp_data[exp]['x'], lwp_data[exp]['y'], R[exp], levels = [island_radius], colors = ['k'])
-<<<<<<< HEAD
     ax.set_title(labels[idx-1] + ' DX' + exp[:-1] + ', P$_{max}$ = ' + str(round(precip.max(), 2)) + ' mm')
     iy, ix = np.where(precip == precip.max())
     ax.plot(lwp_data[exp]['x'][iy[0],ix[0]], lwp_data[exp]['y'][iy[0],ix[0]], color = 'purple', marker = 'x', mew = 2.5, ms = 7.5)
-=======
-    ax.set_title('DX' + exp[:-1] + ', P$_{max}$ = ' + str(round(precip.max(), 2)) + ' mm')
-    ax.text(5, 22.5, labels[idx-1], bbox = {'facecolor':'w','edgecolor':'none'})
->>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
     # do some beautification
     if idx in [1, 3]:
         ax.set_ylabel('y (km)')
@@ -70,18 +57,10 @@ for exp in experiments:
         ax.set_xlabel('x (km)')
 
 # add colorbar
-<<<<<<< HEAD
 axins = inset_axes(ax, width = "100%", height = "10%", loc = 3, bbox_to_anchor = (-1.05, -0.75, 2.05, 2.0), bbox_transform = ax.transAxes, borderpad = 0.0)
 cbax = plt.colorbar(im, cax = axins, label = u'Daytime Precipitation Total (mm)', orientation = 'horizontal')
 cbax.set_ticklabels([tick if tick < 1 else int(tick) for tick in my_levels])
 plt.subplots_adjust(bottom = 0.3, wspace = 0.05, hspace = 0.00)
 plt.savefig('../precipitation_dx.png', dpi = 250, bbox_inches = 'tight')
-=======
-axins = inset_axes(ax, width = "100%", height = "5%", loc = 3, bbox_to_anchor = (-1.05, -0.7, 2.05, 2.0), bbox_transform = ax.transAxes, borderpad = 0.0)
-cbax = plt.colorbar(im, cax = axins, label = u'Daytime Precipitation Total (mm)', orientation = 'horizontal')
-cbax.set_ticklabels([tick if tick < 1 else int(tick) for tick in my_levels])
-plt.subplots_adjust(bottom = 0.3, wspace = 0.05, hspace = 0.05)
-plt.savefig('../precipitation_dx.png', dpi = 150, bbox_inches = 'tight')
->>>>>>> 62279a4ff074ba2a906de6d583e07e7c7ce0c696
 plt.show()
 

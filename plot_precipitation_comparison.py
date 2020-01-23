@@ -27,7 +27,7 @@ for key in keys:
     lwp_nc = Dataset(paths[key] + 'lwp_00.nc', 'r')
     time_key = [tkey for tkey in lwp_nc.variables.keys() if 'accum' in tkey][0]
     times = lwp_nc.variables[time_key][:]*1.
-    if key in ['U05', 'U10']:
+    if key in ['U05']:
         times += 240.0
     idx = [it for it in range(len(times)) if times[it] == 1080.0][0]
     precipitation = lwp_nc.variables[ls_rain_amt_key][idx,:,:]
