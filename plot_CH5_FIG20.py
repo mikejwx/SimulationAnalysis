@@ -20,7 +20,7 @@ for key in keys:
     print key
     with Dataset(paths[key] + 'lwp_00.nc', 'r') as lwp_nc:
         time_key = [tkey for tkey in lwp_nc.variables.keys() if 'min' in tkey][0]
-        times = lwp_nc.variables[time_key][:]*1. + [120.0 if key == 'U05' else 0.0][0]
+        times = lwp_nc.variables[time_key][:]*1. + [240.0 if key == 'U05' else 0.0][0]
         idx = [it for it in range(len(times)) if (360.0 <= times[it]) and (times[it] <= 1080.0)]
         my_data[key] = np.nanmean(np.where(lwp_nc.variables[lwp_key][idx,:,:] > 0, 1.0, 0.0), axis = 0)
 

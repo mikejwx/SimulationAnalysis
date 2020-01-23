@@ -62,10 +62,10 @@ for exp in keys:
         ax.set_xlabel('x (km)')
 
 # add colorbar
-axins = inset_axes(ax, width = "100%", height = "10%", loc = 3, bbox_to_anchor = (-1.05, -0.75, 2.05, 2.0), bbox_transform = ax.transAxes, borderpad = 0.0)
+axins = inset_axes(ax, width = "100%", height = "10%", loc = 3, bbox_to_anchor = (-1.05, -0.8, 2.05, 2.0), bbox_transform = ax.transAxes, borderpad = 0.0)
 cbax = plt.colorbar(im, cax = axins, label = u'Daytime Precipitation Total (mm)', orientation = 'horizontal')
 cbax.set_ticklabels([tick if tick < 1 else int(tick) for tick in my_levels])
-plt.subplots_adjust(bottom = 0.3, wspace = 0.05, hspace = 0.00)
+plt.subplots_adjust(bottom = 0.2, wspace = 0.05, hspace = -0.25)
 plt.savefig('../Ch5_Figure22.png', dpi = 250, bbox_inches = 'tight')
 plt.show()
 

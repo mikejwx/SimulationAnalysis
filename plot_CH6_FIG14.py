@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 from STASH_keys import ctz_key, lwp_key
 from scipy import ndimage
-from analysis_tools import round5
 import os
 
 """
@@ -74,6 +73,7 @@ letter = ['a)', 'b)', 'c)', 'd)']
 # plot boxplot timeseries
 fig = plt.figure(figsize=(10,6), tight_layout = True)
 for idx in range(4):
+    res = resolutions[idx]
     axa = fig.add_subplot(2, 2, idx+1)
     # Plot the median
     axa.plot(my_data[resolutions[idx]][ctz_time_key], [np.nanpercentile(ob, 50) for ob in my_data[resolutions[idx]]['max_ctz']], 'k', lw = 2)

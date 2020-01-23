@@ -84,7 +84,7 @@ for exp in exps:
 ### Box/whisker plots of the boundary layer stuff from zi_DD.nc files ###
 exp_labels = ['DX' + ['0' if exp != '1600m' else ''][0] + exp.replace('m','') for exp in exps]
 
-fig = plt.figure(figsize = (14,8), tight_layout = True)
+fig = plt.figure(figsize = (8,6), tight_layout = True)
 axa = fig.add_subplot(2, 2, 1)
 lcl_bp = axa.boxplot([np.nanmean(my_data[exp][lcl_key], axis = (1, 2)) for exp in exps], labels = exp_labels, widths = 0.8)
 axa.set_title('a) LCL')
@@ -137,11 +137,15 @@ for bp in my_boxplots:
     
     plt.setp(bp['fliers'], color = 'k', marker = '.', markeredgecolor = 'k')
 
+xtickNames = plt.setp(axc, xticklabels=exp_labels)
+plt.setp(xtickNames, rotation=45, fontsize=8)
+xtickNames = plt.setp(axd, xticklabels=exp_labels)
+plt.setp(xtickNames, rotation=45, fontsize=8)
 axa.plot([1.5, 1.5], [500, 800], 'grey', ls = ':')
 axb.plot([1.5, 1.5], [500, 800], 'grey', ls = ':')
 axc.plot([1.5, 1.5], [0, 4000], 'grey', ls = ':')
 axd.plot([1.5, 1.5], [120, 190], 'grey', ls = ':')
-fig.suptitle('Values over the last 4 days of the Spinup simulations')
+#fig.suptitle('Values over the last 4 days of the Spinup simulations')
 plt.subplots_adjust(top = 0.88, hspace = 0.3, wspace = 0.3)
 plt.savefig('../Ch6_Figure01.png', dpi = 250, bbox_inches = 'tight')
 plt.show()
@@ -151,6 +155,7 @@ fig = plt.figure(figsize = (9, 5))
 axa = fig.add_subplot(1, 2, 1)
 axa.set_ylim([0, 4])
 axa.set_ylabel('Height (km)')
+axa.set_xlabel('Wind (m s$^{-1}$)')
 
 axb = fig.add_subplot(1, 2, 2)
 axb.set_ylim([0, 4])
@@ -169,20 +174,22 @@ axc.set_yticklabels([''])
 
 for exp in exps[1:]:
     # Plot u-wind
-    axa.plot(np.nanmean(my_data[exp][u_key], axis = 0), z_theta/1000., color = exp_cols[exp], lw = 2, label = exp_labels[exps.index(exp)])
+    axa.plot(np.nanmean(my_data[exp][u_key], axis = 0), z_theta/1000., color = exp_cols[exp], lw = 2)
     # Plot v-wind
     axa.plot(np.nanmean(my_data[exp][v_key], axis = 0), z_theta/1000., color = exp_cols[exp], lw = 2, ls = '--')
     # Plot theta
-    axb.plot(np.nanmean(my_data[exp][theta_key], axis = 0), z_theta/1000., color = exp_cols[exp], lw = 2)
+    axb.plot(np.nanmean(my_data[exp][theta_key], axis = 0), z_theta/1000., color = exp_cols[exp], lw = 2, label = exp_labels[exps.index(exp)])
     # Plot q
     axc.plot(np.nanmean(my_data[exp][q_key], axis = 0)*1000.0, z_theta/1000., color = exp_cols[exp], lw = 2, ls = '--')
 
+axa.text(-9.5, 3.75, 'a)', fontsize = 14)
 axa.text(-9.5, 2, '$u$', fontsize = 16)
 axa.text(-0.9, 2, '$v$', fontsize = 16)
-axb.text(301, 0.5, '$\\theta$', fontsize = 16)
+axb.text(301, 3.75, 'b)', fontsize = 14)
+axb.text(301.5, 0.5, '$\\theta$', fontsize = 16)
 axc.text(16.0, 0.5, 'q$_{v}$', fontsize = 16)
 axa.plot([0,0], [0, 4], lw = 0.5, ls = ':', color = 'grey')
-axa.legend(loc = 0, frameon = 0, fontsize = 12)
+axb.legend(loc = 'upper right', frameon = 0, fontsize = 12)
 plt.savefig('../Ch6_Figure02.png', dpi = 250, bbox_inches = 'tight')
 plt.show()
 
