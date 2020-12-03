@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 from scipy import interpolate, integrate
 from analysis_tools import downwind_rectangle, fromComponents, lcl, find_h
-from STASH_keys import theta_key, q_key, w_key, u_key, v_key, zi_new_key, lcl_key, pthe_key
+from STASH_keys import temp_key, theta_key, q_key, w_key, u_key, v_key, zi_new_key, lcl_key, pthe_key
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import matplotlib as mpl
 
