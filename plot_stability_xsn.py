@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 from scipy import interpolate, integrate
-from analysis_tools import downwind_rectangle, fromComponents
-from STASH_keys import theta_key, q_key, w_key, u_key, v_key, zi_new_key, lcl_key
+from analysis_tools import downwind_rectangle, fromComponents, lcl, find_h
+from STASH_keys import theta_key, q_key, w_key, u_key, v_key, zi_new_key, lcl_key, pthe_key
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import matplotlib as mpl
 
@@ -16,23 +16,29 @@ path = '/gws/nopw/j04/paracon_rdg/users/mcjohnston/experiments/Control/'
 
 my_data = {}
 # Read thermodynamic data
-with Dataset(path + 'bouy_09.nc', 'r') as bouy_nc:
+with Dataset(path + 'buoy/bouy_09.nc', 'r') as bouy_nc:
     my_data[theta_key] = bouy_nc.variables[theta_key][:]*1.
     my_data[q_key]     = bouy_nc.variables[q_key][:]*1.
     my_data['z']       = bouy_nc.variables['thlev_zsea_theta'][:]*1.
     timeKey            = [tkey for tkey in bouy_nc.variables.keys() if 'min' in tkey][0]
     my_data['times']   = bouy_nc.variables[timeKey][:]*1.
-    
+    my_data[w_key]     = bouy_nc.variables[w_key][:]*1.
+    # Compute lcl
+    my_data[lcl_key]   = lcl(bouy_nc.variables[temp_key][:]*1.,
+                             bouy_nc.variables[q_key][:]*1.,
+                             bouy_nc.variables[pthe_key][:]*1.,
+                             my_data['z'])
+                             
 # Read wind data
-with Dataset(path + 'wind_09.nc', 'r') as wind_nc:
-    my_data[w_key] = wind_nc.variables[w_key][:]*1.
-    my_data[u_key] = wind_nc.variables[u_key][:]*1.
-    my_data[v_key] = wind_nc.variables[v_key][:]*1.
+with Dataset(path + 'u/u_09.nc', 'r') as u_nc:
+    my_data[u_key] = u_nc.variables[u_key][:]*1.
 
-# Read the boundary layer heights
-with Dataset(path + 'zi_09.nc', 'r') as zi_nc:
-    my_data[zi_new_key] = zi_nc.variables[zi_new_key][:]*1.
-    my_data[lcl_key]    = zi_nc.variables[lcl_key][:]*1.
+with Dataset(path + 'v/v_09.nc', 'r') as v_nc:
+    my_data[v_key] = v_nc.variables[v_key][:]*1.
+
+# Compute zi
+my_data['thetav'] = my_data[theta_key]*(1 + 0.608*my_data[q_key])
+my_data[zi_new_key] = find_h(my_data['thetav'], my_data[u_key], my_data[v_key], my_data['z'])
 
 # Create the horizontal coordinate system and define the island
 dx = 100.0
@@ -115,7 +121,7 @@ axb.set_ylabel('Height (km)')
 axb.text(-10, 1.275, 'b)', bbox = {'edgecolor':'none', 'facecolor':'white','pad':0.0})
 axb.set_xlabel('Distance Downwind (km)')
 plt.subplots_adjust(left = 0.10, bottom = 0.175, right = 0.90, wspace = 0.0, hspace = -0.10)
-plt.savefig('../Ch5_Figure06.png', dpi = 250, bbox_inches = 'tight')
+#plt.savefig('../Ch5_Figure06.png', dpi = 250, bbox_inches = 'tight')
 plt.show()
 
 # make a separate plot to show the vertical velocities
@@ -144,7 +150,7 @@ plt.plot(np.arange(-4*R_i-dx/2, 80000.1, dx), distance_downwind_x)
 plt.show()
 
 distance_downwind_xy = np.nanmean(distance_downwind_x)
-print str(round(distance_downwind_xy/1000., 3)) + ' km'
-print str(round(distance_downwind_xy/wind_spd, 0)) + ' seconds'
-print str(round(zi_mean/(distance_downwind_xy/wind_spd), 1)) + ' m/s'
+print(str(round(distance_downwind_xy/1000., 3)) + ' km')
+print(str(round(distance_downwind_xy/wind_spd, 0)) + ' seconds')
+print(str(round(zi_mean/(distance_downwind_xy/wind_spd), 1)) + ' m/s')
 
