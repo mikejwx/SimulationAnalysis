@@ -120,8 +120,8 @@ def zi(theta_v, z):
     theta_v_parcel = theta_v[0,:,:]
     # Find the height of the level of neutral buoyancy
     z_i = np.zeros_like(theta_v_parcel)
-    for j in xrange(theta_v.shape[1]):
-        for i in xrange(theta_v.shape[2]):
+    for j in range(theta_v.shape[1]):
+        for i in range(theta_v.shape[2]):
             ik = np.max(np.where(np.abs(theta_v_parcel[j,i] - theta_v[2:,j,i]) == np.min(np.abs(theta_v_parcel[j,i] - theta_v[2:,j,i])))[0])
             if theta_v[ik,j,i] > theta_v_parcel[j,i]:
                 # Means the nearest point is higher height than the boundary layer depth
@@ -179,17 +179,17 @@ def getML_mean(var, z, zi, axis = 0):
     elif len(var.shape) == 3:
         # This is f(z, y, x)
         var_ML = np.zeros_like(zi)
-        for j in xrange(var.shape[1]):
-            for i in xrange(var.shape[2]):
+        for j in range(var.shape[1]):
+            for i in range(var.shape[2]):
                 var_f       = interpolate.interp1d(z, var[:,j,i])
                 my_z        = np.arange(np.min(z), zi[j,i])
                 var_ML[j,i] = integrate.trapz(var_f(my_z), my_z)/zi[j,i]
     elif len(var.shape) == 4:
         # This is f(t, z, y, x)
         var_ML = np.zeros_like(zi)
-        for it in xrange(var.shape[0]):
-            for j in xrange(var.shape[2]):
-                for i in xrange(var.shape[3]):
+        for it in range(var.shape[0]):
+            for j in range(var.shape[2]):
+                for i in range(var.shape[3]):
                     var_f          = interpolate.interp1d(z, var[it,:,j,i])
                     my_z           = np.arange(np.min(z), zi[it,j,i])
                     var_ML[it,j,i] = integrate.trapz(var_f(my_z), my_z)/zi[it,j,i]
@@ -226,8 +226,8 @@ def lcl(temp, q, pres, z):
     
     p_LCL = pres[0,:,:]*(T_LCL/temp)**(cpd/Rd)
     z_LCL = np.zeros_like(p_LCL)
-    for j in xrange(pres.shape[1]):
-        for i in xrange(pres.shape[2]):
+    for j in range(pres.shape[1]):
+        for i in range(pres.shape[2]):
             z_LCL[j,i] = interpolate.interp1d(pres[:,j,i], z)(p_LCL[j,i])
     
     return z_LCL
@@ -269,12 +269,12 @@ def find_h(theta_v, u, v, z):
     u       = interpolate.interp1d(x = z, y = u, fill_value = 'extrapolate', axis = 0)
     v       = interpolate.interp1d(x = z, y = v, fill_value = 'extrapolate', axis = 0)
     
-    for k in xrange(1, len(z)):
+    for k in range(1, len(z)):
         Ri_g[k,:,:] = (g/theta_v(z_s[k]))*(theta_v(z[k]) - theta_v(z_s[k]))*(z[k] - z_s[k])/((u(z[k]) - u(z_s[k]))**2. + (v(z[k]) - v(z_s[k]))**2.)
     
     z_i = np.zeros((Ri_g.shape[1], Ri_g.shape[2]))
-    for j in xrange(Ri_g.shape[1]):
-        for i in xrange(Ri_g.shape[2]):
+    for j in range(Ri_g.shape[1]):
+        for i in range(Ri_g.shape[2]):
             # Assume that Ri_g is monotonically increasing in the boundary layer
             k = 0
             while Ri_g[k,j,i] <= Ri_c:
@@ -300,8 +300,8 @@ def get_TKE(U, V, W, rho = 1., start = 0, end = None):
     U_p = np.zeros_like(U)
     V_p = np.zeros_like(V)
     W_p = np.zeros_like(W)
-    for t in xrange(U.shape[0]):
-        for k in xrange(U.shape[1]):
+    for t in range(U.shape[0]):
+        for k in range(U.shape[1]):
             U_p[t,k,:,:] = U[t,k,:,:] - U_mean[t,k]
             V_p[t,k,:,:] = V[t,k,:,:] - V_mean[t,k]
             W_p[t,k,:,:] = W[t,k,:,:] - W_mean[t,k]
@@ -364,7 +364,7 @@ def get_CTZ(mc, z, threshold = 1e-16):
     else:
         Z = np.repeat(z, mc.shape[2]*mc.shape[3], axis = 0).reshape(mc.shape[1:])
         Z_top = np.zeros((mc.shape[0], mc.shape[2], mc.shape[3]))
-        for it in xrange(mc.shape[0]):
+        for it in range(mc.shape[0]):
             Z_top[it,:,:] = np.nanmax(np.where((mc[it,:,:,:] >= threshold), Z, np.nan), axis = 0)
     
     return Z_top
@@ -419,7 +419,7 @@ def get_theta_w(temperature, q, pressure, t_units = 'K', q_units = 'kg/kg', p_un
     dp = (p0 - LCL_pressure)/ndp
     p1 = LCL_pressure*1.
     theta_w = LCL_temperature*1.
-    for i in xrange(ndp):
+    for i in range(ndp):
         # integrate down until we are at p0
         rho = (p1 + dp/2.)*100./(Rd*theta_w)
         dz = - dp*100./(rho*g)
@@ -531,7 +531,7 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
     # Which kind of interpolation are we doing?
     if kind == 0:
         # Nearest Neighbor
-        for i in xrange(len(x_out)):
+        for i in range(len(x_out)):
             # Find the distance to the input data coordinates
             r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
             z_in = z_in0*1.
@@ -540,19 +540,19 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
     
     elif kind == 1:
         # Inverse Distance Weighting
-        for i in xrange(len(x_out)):
+        for i in range(len(x_out)):
             r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
             z_in = z_in0*1.
             iy, ix = np.where(r < d)
             w = 0
-            for j in xrange(len(iy)):
+            for j in range(len(iy)):
                 w += (1./r[iy[j], ix[j]]**p)
                 z_out[:,i] += (1./r[iy[j], ix[j]]**p)*z_in[:,iy[j]%z_in.shape[1], ix[j]%z_in.shape[2]]
             z_out[:,i] /= w
     
     elif kind == 2:
         # Bilinear Interpolation
-        for i in xrange(len(x_out)):
+        for i in range(len(x_out)):
             r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
             # Find the nearest points
             iy0, ix0 = [i0[0] for i0 in np.where(r == np.min(r))]
@@ -565,7 +565,7 @@ def bilinear_interpolation(x_in, y_in, z_in0, x_out, y_out, kind = 0, d = 2000.0
     
     elif kind == 3:
         # Local Operator
-        for i in xrange(len(x_out)):
+        for i in range(len(x_out)):
             r = np.sqrt((x_in - x_out[i])**2 + (y_in - y_out[i])**2)
             z_in = z_in0*1.
             iy, ix = np.where(r < d)
@@ -682,30 +682,30 @@ def regrid(target_grid, current_grid, current_data_key):
     # never required to interpolate in more than two dimensions
     # 1. interpolate in time
     if target_t_key != current_t_key:
-        print 'Regridding in time...'
+        print('Regridding in time...')
         # Interpolate in time
         current_data = interpolate.interp1d(current_t, current_data, axis = 0, fill_value = 'extrapolate')(target_t)
-        print 'Complete.'
+        print('Complete.')
     # 2. interpolate in z
     if target_z_key != current_z_key:
-        print 'Regridding in height...'
+        print('Regridding in height...')
         # Interpolate in z
         current_data = interpolate.interp1d(current_z, current_data, axis = 1, fill_value = 'extrapolate')(target_z)
-        print 'Complete.'
+        print('Complete.')
     # 3. interpolate in y
     if target_y_key != current_y_key:
-        print 'Regridding in latitude...'
+        print('Regridding in latitude...')
         # Interpolate in y
-        for i in xrange(current_data.shape[3]):
+        for i in range(current_data.shape[3]):
             current_data[:,:,:,i] = interpolate.interp1d(current_y[:,i], current_data[:,:,:,i], axis = 2, fill_value = 'extrapolate')(target_y[:,i])
-        print 'Complete.'
+        print('Complete.')
     # 4. interpolate in x
     if target_x_key != current_x_key:
-        print 'Regridding in longitude...'
+        print('Regridding in longitude...')
         # Interpolate in x
-        for j in xrange(current_data.shape[2]):
+        for j in range(current_data.shape[2]):
             current_data[:,:,j,:] = interpolate.interp1d(current_x[j,:], current_data[:,:,j,:], axis = 2, fill_value = 'extrapolate')(target_x[j,:])
-        print 'Complete.'
+        print('Complete.')
     
     return current_data
 
@@ -745,7 +745,7 @@ def ddx(data, X, periodic = True):
                .True. means periodic boundary conditions
                .False. means zero gradient boundary conditions.
     """
-    print 'WARNING: gradients are returned at staggered coordinates'
+    print('WARNING: gradients are returned at staggered coordinates')
     d_dx = np.zeros_like(data)
     if len(data.shape) == 2:
         d_dx[:,:-1] = (data[:,1:] - data[:,:-1])/(X[:,1:] - X[:,:-1])
@@ -771,7 +771,7 @@ def ddy(data, Y, periodic = True):
                .True. means periodic boundary conditions
                .False. means zero gradient boundary conditions.
     """
-    print 'WARNING: gradients are returned at staggered coordinates'
+    print('WARNING: gradients are returned at staggered coordinates')
     d_dy = np.zeros_like(data)
     if len(data.shape) == 2:
         d_dy[:-1,:] = (data[1:,:] - data[:-1,:])/(Y[1:,:] - Y[:-1,:])
@@ -807,23 +807,23 @@ def circular_smoothing(X, Y, data, r, scale = 1):
     y_periodic = np.concatenate((y_periodic, y_periodic, y_periodic), axis = 1)
     smoothed_data = np.zeros_like(data)
     if len(data.shape) == 2:
-        for i in xrange(0, data.shape[0], scale):
-            for j in xrange(0, data.shape[1], scale):
+        for i in range(0, data.shape[0], scale):
+            for j in range(0, data.shape[1], scale):
                 iy, ix = np.where(np.sqrt((X[i,j] - x_periodic)**2 + (Y[i,j] - y_periodic)**2) <= r)
                 smoothed_data[i,j] = np.nanmean(data[iy%X.shape[0],ix%X.shape[1]])
         smoothed_data = smoothed_data[::scale,::scale]
     elif len(data.shape) == 3:
-        for tz0 in xrange(data.shape[0]):
-            for i in xrange(0, data.shape[1], scale):
-                for j in xrange(0, data.shape[2], scale):
+        for tz0 in range(data.shape[0]):
+            for i in range(0, data.shape[1], scale):
+                for j in range(0, data.shape[2], scale):
                     iy, ix = np.where(np.sqrt((X[i,j] - x_periodic)**2 + (Y[i,j] - y_periodic)**2) <= r)
                     smoothed_data[tz0,i,j] = np.nanmean(data[tz0,iy%X.shape[0],ix%X.shape[1]])
         smoothed_data = smoothed_data[:,::scale,::scale]
     elif len(data.shape) == 4:
-        for tz0 in xrange(data.shape[0]):
-            for tz1 in xrange(data.shape[1]):
-                for i in xrange(0, data.shape[2], scale):
-                    for j in xrange(0, data.shape[3], scale):
+        for tz0 in range(data.shape[0]):
+            for tz1 in range(data.shape[1]):
+                for i in range(0, data.shape[2], scale):
+                    for j in range(0, data.shape[3], scale):
                         iy, ix = np.where(np.sqrt((X[i,j] - x_periodic)**2 + (Y[i,j] - y_periodic)**2) <= r)
                         smoothed_data[tz0,tz1,i,j] = np.nanmean(data[tz0,tz1,iy%X.shape[0],ix%X.shape[1]])
         smoothed_data = smoothed_data[:,:,::scale,::scale]
@@ -1087,9 +1087,9 @@ def transform_winds(u, v):
     n = np.zeros_like(u) # cross flow
     
     # For every time step
-    for it in xrange(u.shape[0]):
+    for it in range(u.shape[0]):
         # For every height
-        for k in xrange(u.shape[1]):
+        for k in range(u.shape[1]):
             u_slice = u[it,k,:,:]
             v_slice = v[it,k,:,:]
             # Find the mean wind direction
@@ -1130,9 +1130,9 @@ def in_plane_winds(u, v, orientation = 90.):
     n = np.zeros_like(u) # cross flow
     
     # For every time step
-    for it in xrange(u.shape[0]):
+    for it in range(u.shape[0]):
         # For every height
-        for k in xrange(u.shape[1]):
+        for k in range(u.shape[1]):
             u_slice = u[it,k,:,:]
             v_slice = v[it,k,:,:]
             # Find the mean wind direction
@@ -1196,14 +1196,14 @@ def summary(aIN):
     Requires numpy, prints max, 95th, 75th, 50th, mean 25th, 5th percentiles, and min.
     """
     
-    print "\n===================="
-    print "\n  MAX: "+str(np.nanmax(aIN))
-    print "\n  95th: " + str(np.percentile(aIN, 95))
-    print "\n  75th: " + str(np.percentile(aIN, 75))
-    print "\n  50th: " + str(np.percentile(aIN, 50))
-    print "\n  MEAN: " + str(np.nanmean(aIN))
-    print "\n  25th: " + str(np.percentile(aIN, 25))
-    print "\n  5th: " + str(np.percentile(aIN, 5))
-    print "\n  MIN: " + str(np.nanmin(aIN))
-    print "\n===================="
+    print("\n====================")
+    print("\n  MAX: ", str(np.nanmax(aIN)))
+    print("\n  95th: ", str(np.percentile(aIN, 95)))
+    print("\n  75th: ", str(np.percentile(aIN, 75)))
+    print("\n  50th: ", str(np.percentile(aIN, 50)))
+    print("\n  MEAN: ", str(np.nanmean(aIN)))
+    print("\n  25th: ", str(np.percentile(aIN, 25)))
+    print("\n  5th: ", str(np.percentile(aIN, 5)))
+    print("\n  MIN: ", str(np.nanmin(aIN)))
+    print("\n====================")
 
