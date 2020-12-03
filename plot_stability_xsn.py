@@ -16,7 +16,7 @@ path = '/gws/nopw/j04/paracon_rdg/users/mcjohnston/experiments/Control/'
 
 my_data = {}
 # Read thermodynamic data
-with Dataset(path + 'buoy/bouy_09.nc', 'r') as bouy_nc:
+with Dataset(path + 'bouy/bouy_09.nc', 'r') as bouy_nc:
     my_data[theta_key] = bouy_nc.variables[theta_key][:]*1.
     my_data[q_key]     = bouy_nc.variables[q_key][:]*1.
     my_data['z']       = bouy_nc.variables['thlev_zsea_theta'][:]*1.
