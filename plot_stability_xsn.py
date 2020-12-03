@@ -6,6 +6,7 @@ from analysis_tools import downwind_rectangle, fromComponents, lcl, find_h
 from STASH_keys import temp_key, theta_key, q_key, w_key, u_key, v_key, zi_new_key, lcl_key, pthe_key
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import matplotlib as mpl
+plt.switch_backend('agg')
 
 # We want to show that the warm plume is capping the boundary layer
 # We suspect that this is responsible for the void downwind of the termination 
@@ -121,8 +122,8 @@ axb.set_ylabel('Height (km)')
 axb.text(-10, 1.275, 'b)', bbox = {'edgecolor':'none', 'facecolor':'white','pad':0.0})
 axb.set_xlabel('Distance Downwind (km)')
 plt.subplots_adjust(left = 0.10, bottom = 0.175, right = 0.90, wspace = 0.0, hspace = -0.10)
-#plt.savefig('../Ch5_Figure06.png', dpi = 250, bbox_inches = 'tight')
-plt.show()
+plt.savefig('/home/users/xb899100/thesis_scripts/Ch5_Figure06.png', dpi=250, bbox_inches='tight')
+plt.close('all')
 
 # make a separate plot to show the vertical velocities
 fig = plt.figure(tight_layout = True)
@@ -133,7 +134,8 @@ ax0.plot(x_prime_new/1000., lcl_cs/1000., 'k', lw = 2)
 ax0.plot(x_prime_new/1000., zi_cs/1000., 'k')
 ax0.set_ylim([0, 2.5])
 ax0.set_ylabel('Height (km)')
-plt.show()
+plt.savefig('/home/users/xb899100/thesis_scripts/test01.png', bbox_inches='tight')
+plt.close('all')
 
 distance_downwind = wind_spd*zi_mean/(integrate.trapz(x = my_data['z'][:iz], y = mask*my_data[w_key][it,:iz,:,:], axis = 0)/my_data['z'][iz-1])
 fig = plt.figure()
@@ -143,14 +145,19 @@ ax1.contour(x_prime, y_prime, R, levels = [R_i], colors = ['k'])
 ax1.set_ylim([-5000, 5000])
 ax1.set_xlim([-16000, 80000])
 plt.colorbar(my_plt, ax = ax1, orientation = 'horizontal')
-plt.show()
+plt.savefig('/home/users/xb899100/thesis_scripts/test02.png', bbox_inches='tight')
+plt.close('all')
+
 
 distance_downwind_x  = np.array([np.nanmin(np.where((x_0 <= x_prime)*(x_prime <= (x_0 + dx))*(distance_downwind > 0), distance_downwind, np.nan)) for x_0 in np.arange(-4*R_i-dx/2., 80000.1, dx)])
 plt.plot(np.arange(-4*R_i-dx/2, 80000.1, dx), distance_downwind_x)
-plt.show()
+plt.savefig('/home/users/xb899100/thesis_scripts/test03.png', bbox_inches='tight')
+plt.close('all')
+
 
 distance_downwind_xy = np.nanmean(distance_downwind_x)
-print(str(round(distance_downwind_xy/1000., 3)) + ' km')
-print(str(round(distance_downwind_xy/wind_spd, 0)) + ' seconds')
-print(str(round(zi_mean/(distance_downwind_xy/wind_spd), 1)) + ' m/s')
+with open('/home/users/xb899100/thesis_scripts/summary.csv', 'w') as out_csv:
+    out_csv.write(str(round(distance_downwind_xy/1000., 3)) + ' km')
+    out_csv.write(str(round(distance_downwind_xy/wind_spd, 0)) + ' seconds')
+    out_csv.write(str(round(zi_mean/(distance_downwind_xy/wind_spd), 1)) + ' m/s')
 
