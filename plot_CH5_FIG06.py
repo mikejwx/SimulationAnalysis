@@ -12,7 +12,7 @@ import matplotlib as mpl
 # point of the surface warm plume
 
 ### Read some data from the reference experiment ###
-path = '/nerc/n02/n02/xb899100/CloudTrail/Control2/'
+path = '/gws/nopw/j04/paracon_rdg/users/mcjohnston/experiments/Control/'
 
 my_data = {}
 # Read thermodynamic data
